@@ -8,7 +8,7 @@ Keeps folders in your vault up to date with Confluence Cloud spaces. One way onl
 - Every page of the space becomes a note named after its title. Pages with children become folder notes (`Policies/Policies.md`). Confluence folders become folders. Databases, whiteboards and embeds become short stub notes that link to Confluence.
 - Page links become wikilinks, attachments are downloaded into `_attachments/<page id>/`, panels become callouts, tables stay tables.
 - A second sync is cheap: only pages whose Confluence version moved are fetched again. Unchanged notes are never rewritten.
-- Renamed or moved pages are moved in the vault. Pages deleted in Confluence go to the vault trash.
+- Renamed or moved pages are moved in the vault. Pages deleted in Confluence are trashed the way your "Deleted files" setting says.
 - Notes you edited by hand are overwritten, and the report lists them. Your own notes inside a synced folder are left alone.
 
 ## Requirements

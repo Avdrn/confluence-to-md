@@ -50,9 +50,9 @@ export class NoteWriter {
     await this.app.fileManager.renameFile(file, newPath);
   }
 
-  /** Into the vault's own `.trash` folder, where the note can be recovered. */
+  /** Follows the user's "Deleted files" preference: system trash, vault trash or permanent. */
   public async trash(file: TAbstractFile): Promise<void> {
-    await this.app.vault.trash(file, false);
+    await this.app.fileManager.trashFile(file);
   }
 
   /**

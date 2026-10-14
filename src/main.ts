@@ -28,7 +28,7 @@ export default class ConfluenceSyncPlugin extends Plugin {
     confirmTrash: (count: number): Promise<boolean> => confirm(
       this.app,
       'Trash notes?',
-      `${count} notes were deleted in Confluence. Move their notes to the vault trash?`,
+      `${count} pages were deleted in Confluence. Move their notes to the trash?`,
       'Trash them'
     ),
     onFinished: (report: SyncReport): void => {

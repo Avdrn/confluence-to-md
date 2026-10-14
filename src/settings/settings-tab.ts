@@ -92,7 +92,7 @@ export class ConfluenceSyncSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Ask before trashing more than')
-      .setDesc('Notes deleted in Confluence go to the vault trash. Above this number the sync asks first.')
+      .setDesc('Notes deleted in Confluence are trashed the way your "Deleted files" setting says. Above this number the sync asks first.')
       .addSlider((slider): void => {
         slider.setLimits(0, 50, 1)
           .setValue(this.plugin.settings.confirmTrashAbove)

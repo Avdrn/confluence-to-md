@@ -51,7 +51,7 @@ export async function trashEmptyFolders(
     if (reserved.get(parentOf(folder.path))?.has(baseName(folder.path).toLowerCase())) {
       continue;
     }
-    await app.vault.trash(folder, false);
+    await app.fileManager.trashFile(folder);
     trashed.push(folder.path);
   }
   return trashed;
