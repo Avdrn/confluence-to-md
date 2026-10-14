@@ -1,0 +1,49 @@
+/* Confluence Space Sync */
+
+.confluence-sync-status {
+  cursor: pointer;
+}
+
+.confluence-sync-report h3 {
+  margin-top: 1.2em;
+  margin-bottom: 0.3em;
+}
+
+.confluence-sync-report ul {
+  margin-top: 0;
+  padding-left: 1.2em;
+}
+
+.confluence-sync-report li {
+  margin: 0.15em 0;
+}
+
+.confluence-sync-report .confluence-sync-link {
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.confluence-sync-report .confluence-sync-detail {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  margin-left: 0.4em;
+}
+
+.confluence-sync-report .confluence-sync-summary {
+  font-weight: var(--font-semibold);
+  margin-bottom: 0.6em;
+}
+
+.confluence-sync-report .confluence-sync-actions,
+.confluence-sync-confirm .confluence-sync-actions {
+  display: flex;
+  gap: 0.5em;
+  margin-top: 1em;
+  justify-content: flex-end;
+}
+
+.confluence-sync-notice-link {
+  text-decoration: underline;
+  cursor: pointer;
+  margin-left: 0.4em;
+}

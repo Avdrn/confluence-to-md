@@ -1,0 +1,10 @@
+{
+  "id": "confluence-space-sync",
+  "name": "Confluence Space Sync",
+  "version": "0.1.0",
+  "minAppVersion": "1.11.4",
+  "description": "Keeps vault folders up to date with Confluence Cloud spaces. One way: Confluence is the source of truth.",
+  "author": "Avdrn",
+  "authorUrl": "https://github.com/Avdrn",
+  "isDesktopOnly": false
+}

@@ -1,0 +1,27 @@
+<ac:structured-macro ac:name="toc" ac:schema-version="1" ac:macro-id="a1"><ac:parameter ac:name="minLevel">1</ac:parameter><ac:parameter ac:name="maxLevel">4</ac:parameter><ac:parameter ac:name="outline">false</ac:parameter><ac:parameter ac:name="style">none</ac:parameter><ac:parameter ac:name="type">list</ac:parameter><ac:parameter ac:name="printable">false</ac:parameter></ac:structured-macro>
+<h2>In this release</h2>
+<ac:structured-macro ac:name="info" ac:schema-version="1" ac:macro-id="a2"><ac:rich-text-body><p>This release adds <strong>bulk import</strong> and table sorting to the Widget Manager.</p><p>Role based access control follows in the next release.</p></ac:rich-text-body></ac:structured-macro>
+<p>Please note: features marked <ac:structured-macro ac:name="status" ac:schema-version="1" ac:macro-id="a3"><ac:parameter ac:name="colour">Yellow</ac:parameter><ac:parameter ac:name="title">PREVIEW</ac:parameter></ac:structured-macro> are hidden in the demo system until <time datetime="2026-11-01" />.</p>
+<h2>What&rsquo;s new (features)</h2>
+<p><strong>CSV import </strong>Users can now import widgets, suppliers and contacts from a CSV file, reducing manual entry during onboarding.</p>
+<p><strong>Configurable widget types</strong></p>
+<p>Users can define their own widget types. The initial delivery includes:</p>
+<ul><li><p>A master list of widget types to create, edit or delete.</p></li><li><p>A default assignment for every category:</p><ul><li><p>Standard widgets</p></li><li><p>Custom widgets</p></li></ul></li></ul>
+<p><strong>Table sorting</strong> Users can sort every column in list reports and value help dialogs.</p>
+<h2>Bug fixes and improvements</h2>
+<h4>Improvements</h4>
+<ul><li><p><strong>Homepage update: </strong>The homepage has been streamlined.</p><ul><li><p>New <em>&ldquo;Manage users&rdquo;</em> tile</p></li><li><p>New &ldquo;Import data&rdquo; tile</p></li></ul></li><li><p><strong>Value help dialog</strong><br />The item counter now shows the number of items that are not selected.</p></li></ul>
+<h4>Bug fixes</h4>
+<table data-layout="default"><colgroup><col style="width: 200px;" /><col style="width: 400px;" /><col style="width: 120px;" /></colgroup><tbody>
+<tr><th><p><strong>Area</strong></p></th><th><p><strong>Fix</strong></p></th><th><p><strong>Ticket</strong></p></th></tr>
+<tr><td><p>Value help</p></td><td><ul><li><p>Search by first name works again</p></li><li><p>Counter shows the right number</p></li></ul></td><td><p><ac:structured-macro ac:name="jira" ac:schema-version="1" ac:macro-id="a4"><ac:parameter ac:name="key">WM-101</ac:parameter></ac:structured-macro></p></td></tr>
+<tr><td><p>Import | export</p></td><td><p>Empty rows are skipped</p><p>Dates in <code>YYYY-MM-DD</code> form are accepted</p></td><td><p><ac:structured-macro ac:name="jira" ac:schema-version="1" ac:macro-id="a5"><ac:parameter ac:name="key">WM-102</ac:parameter></ac:structured-macro></p></td></tr>
+</tbody></table>
+<h2>Open tasks</h2>
+<ac:task-list><ac:task><ac:task-id>1</ac:task-id><ac:task-status>complete</ac:task-status><ac:task-body><span>Update the <ac:link><ri:page ri:content-title="User guide" /><ac:plain-text-link-body><![CDATA[user guide]]></ac:plain-text-link-body></ac:link></span></ac:task-body></ac:task><ac:task><ac:task-id>2</ac:task-id><ac:task-status>incomplete</ac:task-status><ac:task-body><span>Record the demo video, owner <ac:link><ri:user ri:account-id="5b10ac8d82e05b22cc7d4ef5" /></ac:link></span></ac:task-body></ac:task></ac:task-list>
+<ac:structured-macro ac:name="expand" ac:schema-version="1" ac:macro-id="a6"><ac:parameter ac:name="title">Upgrade steps</ac:parameter><ac:rich-text-body><ol><li><p>Back up the database.</p></li><li><p>Run the migration:</p></li></ol><ac:structured-macro ac:name="code" ac:schema-version="1" ac:macro-id="a7"><ac:parameter ac:name="language">bash</ac:parameter><ac:plain-text-body><![CDATA[widgetctl migrate --to 2.4.0
+widgetctl verify]]></ac:plain-text-body></ac:structured-macro></ac:rich-text-body></ac:structured-macro>
+<h2>Visual summary</h2>
+<ac:image ac:align="center" ac:layout="center" ac:original-height="600" ac:original-width="1000" ac:alt="Import wizard"><ri:attachment ri:filename="import-wizard.png" ri:version-at-save="1" /><ac:caption><p>The new import wizard, step 2 of 3</p></ac:caption></ac:image>
+<p>See the <a href="https://example.com/widgets/docs">online documentation</a> for details, or contact <ac:link><ri:page ri:content-title="Support" ri:space-key="HELP" /></ac:link>.</p>
+<ac:structured-macro ac:name="recently-updated" ac:schema-version="1" ac:macro-id="a8"><ac:parameter ac:name="max">5</ac:parameter></ac:structured-macro>
