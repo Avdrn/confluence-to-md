@@ -105,9 +105,12 @@ export function readSpaceKey(frontmatter: unknown): string {
   return asString(bag[PROPERTY.space]).trim();
 }
 
-/** JSON string syntax is valid YAML double-quoted syntax. */
+/**
+ * JSON string syntax is valid YAML double-quoted syntax. `<` is written as an
+ * escape, so a title can never put Templater's `<%` into the file.
+ */
 function quote(value: string): string {
-  return JSON.stringify(value);
+  return JSON.stringify(value).replace(/</g, '\\u003c');
 }
 
 function asString(value: unknown): string {

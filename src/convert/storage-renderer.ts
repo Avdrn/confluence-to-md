@@ -21,6 +21,7 @@ import {
 } from './storage-parser';
 import { calloutForPanel, isPanelMacro, ObsidianCalloutType } from './callout-mapping';
 import { obsidianHeadingAnchor } from './heading-anchor';
+import { codeLanguage, inertInlineCode, inertText } from './inert-markdown';
 import type { StorageNode, UserDirectory } from './storage-types';
 
 /** Placeholder for a link to another Confluence page, resolved after placement. */
@@ -38,6 +39,8 @@ export interface RenderContext {
   /** Nesting of enclosing lists, outermost first. */
   listStack: ReadonlyArray<string>;
   inTable: boolean;
+  /** Inside inline code, where text is shown verbatim and needs no escaping. */
+  inCode: boolean;
   /** Atlassian site, for Jira issue links. Empty when unknown. */
   siteUrl: string;
 }
@@ -74,7 +77,7 @@ const CELL_INDENT: string = '&nbsp;&nbsp;';
 
 /** Renders a parsed body to markdown. Placeholders are left for the link resolver. */
 export function renderStorage(root: StorageNode, users: UserDirectory, siteUrl: string): string {
-  const context: RenderContext = { users, listStack: [], inTable: false, siteUrl };
+  const context: RenderContext = { users, listStack: [], inTable: false, inCode: false, siteUrl };
   return tidy(renderChildren(root, context));
 }
 
@@ -120,7 +123,10 @@ type NodeRenderer = (node: StorageNode, context: RenderContext) => string;
  * paragraph collapses to one line. Inside a cell a raw pipe would end the column.
  */
 function renderText(text: string, context: RenderContext): string {
-  const flat: string = text.replace(NON_BREAKING_SPACE, ' ').replace(/\n/g, ' ').replace(HORIZONTAL_WHITESPACE, ' ');
+  let flat: string = text.replace(NON_BREAKING_SPACE, ' ').replace(/\n/g, ' ').replace(HORIZONTAL_WHITESPACE, ' ');
+  if (!context.inCode) {
+    flat = inertText(flat);
+  }
   if (context.inTable) {
     return flat.replace(/\|/g, '\\|');
   }
@@ -163,11 +169,11 @@ function inline(node: StorageNode, context: RenderContext, wrap: string): string
  * backtick emits broken markup for any page that documents shell quoting.
  */
 function codeSpan(node: StorageNode, context: RenderContext): string {
-  const inner: string = renderChildren(node, context).trim();
+  const inner: string = renderChildren(node, { ...context, inCode: true }).trim();
   if (!inner) {
     return '';
   }
-  return wrapCode(inner, '`');
+  return wrapCode(inertInlineCode(inner), '`');
 }
 
 function wrapCode(inner: string, start: string): string {
@@ -643,15 +649,10 @@ function renderMacro(node: StorageNode, name: string, context: RenderContext): s
 }
 
 function codeMacro(node: StorageNode): string {
-  const language: string = macroParameter(node, 'language').trim().toLowerCase();
   const title: string = macroParameter(node, 'title').trim();
   const plain: StorageNode | undefined = childNamed(node, 'ac:plain-text-body');
   const body: string = rawText(plain ?? node);
-  let usable: string = language;
-  if (language === 'none' || language === 'text') {
-    usable = '';
-  }
-  const fenced: string = fence(body, usable);
+  const fenced: string = fence(body, codeLanguage(macroParameter(node, 'language')));
   if (title) {
     return block(`**${title}**`) + fenced;
   }

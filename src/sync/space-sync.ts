@@ -16,6 +16,7 @@ import { CancelledError } from '../confluence/api/cancellation';
 import { STUB_TYPES } from '../confluence/types/content-node.type';
 import { collectMentionIds } from '../convert/mention-ids';
 import { renderPage } from '../convert/render-page';
+import { inertBody } from '../convert/inert-markdown';
 import { CONVERTER_VERSION } from '../convert/converter-version';
 import { placeContent } from './placement/place-content';
 import { buildPlan, needsBody } from './plan/build-plan';
@@ -326,6 +327,8 @@ export class SpaceSync {
       webUrl = page.webUrl || node.webUrl;
       body = await this.renderBody(page, placed, placement, space);
     }
+    // Before hashing, so the recorded hash matches what lands in the file.
+    body = inertBody(body);
     this.context.token.throwIfCancelled();
     const frontMatter: string = serializeFrontMatter({
       pageId: node.id,
