@@ -11,9 +11,24 @@ import type { ConfluenceAttachment } from '../../confluence/types/confluence-api
 import type { NoteWriter } from '../../vault/note-writer';
 import type { SyncReport } from '../report/sync-report';
 
-interface AttachmentTarget {
+export interface AttachmentTarget {
   attachment: ConfluenceAttachment;
   path: string;
+}
+
+/**
+ * The vault path of every listed attachment, decided the same way on every
+ * run: by title order, with the same renaming, so a push can map a vault file
+ * back to its Confluence title.
+ */
+export function attachmentPaths(listed: ReadonlyArray<ConfluenceAttachment>, folder: string): Array<AttachmentTarget> {
+  const names: SiblingNames = new SiblingNames();
+  return [...listed]
+    .sort((a: ConfluenceAttachment, b: ConfluenceAttachment): number => a.title.localeCompare(b.title))
+    .map((attachment: ConfluenceAttachment): AttachmentTarget => ({
+      attachment,
+      path: joinPath(folder, attachmentFileName(attachment.title, names))
+    }));
 }
 
 /**
@@ -70,13 +85,7 @@ export class AttachmentSync {
   }
 
   private assignPaths(listed: ReadonlyArray<ConfluenceAttachment>, folder: string): Array<AttachmentTarget> {
-    const names: SiblingNames = new SiblingNames();
-    return [...listed]
-      .sort((a: ConfluenceAttachment, b: ConfluenceAttachment): number => a.title.localeCompare(b.title))
-      .map((attachment: ConfluenceAttachment): AttachmentTarget => ({
-        attachment,
-        path: joinPath(folder, attachmentFileName(attachment.title, names))
-      }));
+    return attachmentPaths(listed, folder);
   }
 
   /** Size is the only cheap signal the listing offers, and it is enough to skip a re-download. */

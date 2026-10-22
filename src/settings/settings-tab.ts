@@ -9,6 +9,7 @@ import { CancellationToken } from '../confluence/api/cancellation';
 import { notify, notifyError } from '../ui/notices';
 import type { ConfluenceUser } from '../confluence/types/confluence-api.type';
 import type ConfluenceSyncPlugin from '../main';
+import type { UnpushedEditsPolicy } from '../sync/sync-options';
 
 const API_TOKEN_URL: string = 'https://id.atlassian.com/manage-profile/security/api-tokens';
 
@@ -91,6 +92,19 @@ export class ConfluenceSyncSettingTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
+      .setName('Notes you changed in Obsidian')
+      .setDesc('What a sync does with a note whose text you changed and have not sent to Confluence.')
+      .addDropdown((dropdown): void => {
+        dropdown
+          .addOptions({ ask: 'Ask every time', keep: 'Keep my changes', overwrite: 'Replace them with the Confluence version' })
+          .setValue(this.plugin.settings.unpushedEditsOnSync)
+          .onChange(async (value: string): Promise<void> => {
+            this.plugin.settings.unpushedEditsOnSync = asUnpushedPolicy(value);
+            await this.plugin.saveSettings();
+          });
+      });
+
+    new Setting(containerEl)
       .setName('Ask before trashing more than')
       .setDesc('Notes deleted in Confluence are trashed the way your "Deleted files" setting says. Above this number the sync asks first.')
       .addSlider((slider): void => {
@@ -102,6 +116,33 @@ export class ConfluenceSyncSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
       });
+
+    new Setting(containerEl).setName('Sending changes to Confluence').setHeading();
+
+    new Setting(containerEl)
+      .setName('Allow sending changes to Confluence')
+      .setDesc('Adds "Send my changes to Confluence" to the cloud menu of every synced note. Each send opens a review first; nothing is sent without it.')
+      .addToggle((toggle): void => {
+        toggle.setValue(this.plugin.settings.enablePush)
+          .onChange(async (value: boolean): Promise<void> => {
+            this.plugin.settings.enablePush = value;
+            await this.plugin.saveSettings();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName('Note for the page history')
+      .setDesc('Written into the Confluence page history with every send. The review lets you change it each time.')
+      .addText((text): void => {
+        text.setPlaceholder('Updated from Obsidian')
+          .setValue(this.plugin.settings.pushVersionMessage)
+          .onChange(async (value: string): Promise<void> => {
+            this.plugin.settings.pushVersionMessage = value.trim();
+            await this.plugin.saveSettings();
+          });
+      });
+
+    new Setting(containerEl).setName('Connection limits').setHeading();
 
     new Setting(containerEl)
       .setName('Parallel requests')
@@ -140,4 +181,11 @@ export class ConfluenceSyncSettingTab extends PluginSettingTab {
       notifyError(this.app, err, this.plugin.manifest.id);
     }
   }
+}
+
+function asUnpushedPolicy(value: string): UnpushedEditsPolicy {
+  if (value === 'keep' || value === 'overwrite') {
+    return value;
+  }
+  return 'ask';
 }

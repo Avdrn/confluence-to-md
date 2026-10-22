@@ -1,6 +1,6 @@
 {
   "name": "confluence-space-sync",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Obsidian plugin that mirrors Confluence Cloud spaces into vault notes. Confluence is the source of truth.",
   "main": "main.js",
   "private": true,
@@ -25,5 +25,8 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.59.4",
     "vitest": "5.0.4"
+  },
+  "dependencies": {
+    "diff": "9.0.0"
   }
 }

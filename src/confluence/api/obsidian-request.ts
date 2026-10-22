@@ -9,11 +9,13 @@ import type { HttpRequest, HttpResponse, RequestFn } from './request-fn.type';
 export const obsidianRequest: RequestFn = async (request: HttpRequest): Promise<HttpResponse> => {
   const response: RequestUrlResponse = await requestUrl({
     url: request.url,
-    method: 'GET',
+    method: request.method,
     headers: {
       Authorization: request.headers.Authorization,
       Accept: request.headers.Accept
     },
+    body: request.body,
+    contentType: request.contentType,
     throw: false
   });
   return {

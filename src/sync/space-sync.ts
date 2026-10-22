@@ -19,7 +19,7 @@ import { renderPage } from '../convert/render-page';
 import { inertBody } from '../convert/inert-markdown';
 import { CONVERTER_VERSION } from '../convert/converter-version';
 import { placeContent } from './placement/place-content';
-import { buildPlan, needsBody } from './plan/build-plan';
+import { buildPlan, needsBody, wasEditedByHand } from './plan/build-plan';
 import { hashBody } from './plan/body-hash';
 import { resolveLinks } from './links/link-resolver';
 import { serializeFrontMatter } from './front-matter/managed-front-matter';
@@ -30,7 +30,7 @@ import { buildManagedIndex, resolveFolder } from '../vault/managed-note-index';
 import { NoteWriter } from '../vault/note-writer';
 import { bodyOf } from '../vault/note-body';
 import { trashEmptyFolders } from '../vault/folder-ops';
-import { updateMarker, updateRecordedHash } from '../vault/marker-updater';
+import { setUnpushedFlag, updateMarker, updateRecordedHash } from '../vault/marker-updater';
 import { maxVaultPathLength } from '../vault/vault-limits';
 import { errorMessage } from '../shared/error-message';
 import { runPool } from '../shared/run-pool';
@@ -43,7 +43,7 @@ import type { ProgressReporter } from '../shared/progress';
 import type { ContentPlacement, PlacedContent } from './placement/placement.type';
 import type { LocalNoteState } from './plan/build-plan';
 import type { SyncAction } from './plan/sync-action.type';
-import type { SyncOptions } from './sync-options';
+import type { KeepEditsAnswer, SyncOptions } from './sync-options';
 import type { ManagedIndex, ManagedNote } from '../vault/managed-note-index';
 import type { SpaceScope } from '../vault/marker-notes';
 
@@ -60,6 +60,8 @@ export interface SpaceSyncContext {
   /** Asked before more notes than the threshold are trashed. */
   confirmTrash: (count: number) => Promise<boolean>;
   trashConfirmThreshold: number;
+  /** Asked when notes carry changes not sent to Confluence and the setting says to ask. */
+  confirmKeepEdits: (count: number) => Promise<KeepEditsAnswer>;
 }
 
 interface PendingMove {
@@ -101,11 +103,18 @@ export class SpaceSync {
 
     progress.phase('Comparing with the vault');
     const local: Map<string, LocalNoteState> = await this.localStates(index);
+    const keepLocalEdits: boolean | null = await this.keepLocalEdits(local);
+    if (keepLocalEdits === null) {
+      this.report.cancelled = true;
+      this.report.addWarning('Cancelled before anything was written.');
+      return this.report;
+    }
     const actions: Array<SyncAction> = buildPlan({
       placements: placement.byId,
       local,
       force: options.force,
-      converterVersion: CONVERTER_VERSION
+      converterVersion: CONVERTER_VERSION,
+      keepLocalEdits
     });
     this.report.planned = actions.filter((action: SyncAction): boolean => action.verb !== 'keep');
     this.report.kept = actions.length - this.report.planned.length;
@@ -153,6 +162,29 @@ export class SpaceSync {
     return states;
   }
 
+  /**
+   * Whether notes changed in Obsidian are left alone this run. Null when the
+   * user cancelled the question. A preview never asks: it shows them as kept.
+   */
+  private async keepLocalEdits(local: ReadonlyMap<string, LocalNoteState>): Promise<boolean | null> {
+    const edited: number = [...local.values()].filter(wasEditedByHand).length;
+    const { options } = this.context;
+    if (edited === 0 || options.unpushedEdits === 'keep') {
+      return true;
+    }
+    if (options.unpushedEdits === 'overwrite') {
+      return false;
+    }
+    if (options.dryRun) {
+      return true;
+    }
+    const answer: KeepEditsAnswer = await this.context.confirmKeepEdits(edited);
+    if (answer === 'cancel') {
+      return null;
+    }
+    return answer === 'keep';
+  }
+
   private async apply(
     actions: ReadonlyArray<SyncAction>,
     placement: ContentPlacement,
@@ -162,6 +194,7 @@ export class SpaceSync {
     const { app, scope, token, progress } = this.context;
     await this.moveNotes(actions, placement, index);
     await this.writeNotes(actions, placement, space);
+    await this.flagKeptNotes(actions, index);
     token.throwIfCancelled();
     await this.trashNotes(actions, index);
     const root: TFolder | null = resolveFolder(app, scope.rootFolder);
@@ -194,7 +227,7 @@ export class SpaceSync {
     );
     await this.parkAndRename(stillPending);
     for (const move of pending) {
-      if (move.action.verb === 'move') {
+      if (move.action.verb === 'move' || move.action.verb === 'keep-local') {
         this.report.moved.push({ title: move.action.title, path: move.note.file.path, detail: `from ${move.action.previousPath}` });
       }
     }
@@ -378,6 +411,27 @@ export class SpaceSync {
     }
     if (action.overwritesLocalEdit) {
       this.report.overwrittenLocalEdits.push(entry);
+    }
+  }
+
+  /** A kept note says so in its front-matter until its changes are sent or replaced. */
+  private async flagKeptNotes(actions: ReadonlyArray<SyncAction>, index: ManagedIndex): Promise<void> {
+    const kept: Array<SyncAction> = actions.filter((action: SyncAction): boolean => action.verb === 'keep-local');
+    if (kept.length === 0) {
+      return;
+    }
+    const stamp: string = new Date().toISOString();
+    for (const action of kept) {
+      const note: ManagedNote | undefined = index.notes.get(action.pageId);
+      if (!note) {
+        continue;
+      }
+      try {
+        await setUnpushedFlag(this.context.app, note.file, stamp);
+        this.report.keptLocal.push({ title: action.title, path: note.file.path, detail: action.reason });
+      } catch (err) {
+        this.report.addWarning(`Could not mark "${note.file.path}" as changed: ${errorMessage(err)}`);
+      }
     }
   }
 

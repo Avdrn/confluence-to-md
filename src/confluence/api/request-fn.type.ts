@@ -3,6 +3,8 @@
  * in the plugin; tests pass a fake.
  */
 
+export type HttpMethod = 'GET' | 'PUT' | 'POST';
+
 export interface HttpHeaders {
   Authorization: string;
   Accept: string;
@@ -10,7 +12,12 @@ export interface HttpHeaders {
 
 export interface HttpRequest {
   url: string;
+  method: HttpMethod;
   headers: HttpHeaders;
+  /** Request body, for PUT and POST. */
+  body?: string;
+  /** Media type of the body, for PUT and POST. */
+  contentType?: string;
 }
 
 export interface HttpResponse {

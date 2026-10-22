@@ -16,6 +16,8 @@ export const PROPERTY = {
   url: 'confluence-url',
   parentId: 'confluence-parent-id',
   type: 'confluence-type',
+  /** Time of the sync that kept changes made in Obsidian; absent once they are sent or discarded. */
+  unpushed: 'confluence-unpushed',
   lastSync: 'confluence-last-sync',
   spaceName: 'confluence-space-name',
   spaceId: 'confluence-space-id',
@@ -44,6 +46,7 @@ export interface ManagedFrontMatterFields {
   version: number;
   hash: string;
   converter: number;
+  parentId: string;
 }
 
 /** A YAML mapping as Obsidian's metadata cache hands it over. */
@@ -89,7 +92,8 @@ export function readManagedFrontMatter(frontmatter: unknown): ManagedFrontMatter
     title: asString(bag[PROPERTY.title]),
     version: asNumber(bag[PROPERTY.version]),
     hash: asString(bag[PROPERTY.hash]),
-    converter: asNumber(bag[PROPERTY.converter])
+    converter: asNumber(bag[PROPERTY.converter]),
+    parentId: asString(bag[PROPERTY.parentId])
   };
 }
 

@@ -31,16 +31,9 @@ export async function resolveIncludes(
   }
   const bodies: Map<string, string> = new Map<string, string>();
   await Promise.all(refs.map(async (ref: IncludeRef): Promise<void> => {
-    try {
-      const url: string = `/wiki/rest/api/content?spaceKey=${encodeURIComponent(ref.spaceKey)}`
-        + `&title=${encodeURIComponent(ref.title)}&expand=body.storage`;
-      const list: ConfluencePageList = await client.getJson<ConfluencePageList>(url);
-      const body: string | undefined = list.results[0]?.body?.storage?.value;
-      if (body) {
-        bodies.set(ref.macro, body);
-      }
-    } catch (err) {
-      logWarning(`Could not resolve included page "${ref.title}": ${errorMessage(err)}`);
+    const body: string = await fetchIncludedBody(client, ref.spaceKey, ref.title);
+    if (body) {
+      bodies.set(ref.macro, body);
     }
   }));
   let resolved: string = storage;
@@ -48,6 +41,33 @@ export async function resolveIncludes(
     resolved = resolved.split(macro).join(body);
   }
   return resolved;
+}
+
+/** The storage body of the page an include macro names, or '' when it cannot be read. */
+export async function fetchIncludedBody(client: ConfluenceClient, spaceKey: string, title: string): Promise<string> {
+  try {
+    const url: string = `/wiki/rest/api/content?spaceKey=${encodeURIComponent(spaceKey)}`
+      + `&title=${encodeURIComponent(title)}&expand=body.storage`;
+    const list: ConfluencePageList = await client.getJson<ConfluencePageList>(url);
+    return list.results[0]?.body?.storage?.value ?? '';
+  } catch (err) {
+    logWarning(`Could not resolve included page "${title}": ${errorMessage(err)}`);
+    return '';
+  }
+}
+
+/** The page an include macro names, read from the macro's own markup. */
+export function includedPageOf(macroXml: string, currentSpaceKey: string): { spaceKey: string; title: string } | null {
+  const title: RegExpMatchArray | null = macroXml.match(CONTENT_TITLE);
+  if (!title) {
+    return null;
+  }
+  const space: RegExpMatchArray | null = macroXml.match(SPACE_KEY);
+  let spaceKey: string = currentSpaceKey;
+  if (space && space[1]) {
+    spaceKey = space[1];
+  }
+  return { spaceKey, title: title[1] };
 }
 
 function collectIncludeRefs(storage: string, currentSpaceKey: string): Array<IncludeRef> {

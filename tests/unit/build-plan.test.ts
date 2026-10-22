@@ -17,12 +17,18 @@ function local(path: string, overrides: Partial<LocalNoteState> = {}): LocalNote
   return { path, title: 'x', version: 3, hash: 'h1', converter: 1, bodyHash: 'h1', ...overrides };
 }
 
-function plan(placements: Array<[string, PlacedContent]>, locals: Array<[string, LocalNoteState]>, force: boolean = false): Array<SyncAction> {
+function plan(
+  placements: Array<[string, PlacedContent]>,
+  locals: Array<[string, LocalNoteState]>,
+  force: boolean = false,
+  keepLocalEdits: boolean = false
+): Array<SyncAction> {
   const inputs: PlanInputs = {
     placements: new Map<string, PlacedContent>(placements),
     local: new Map<string, LocalNoteState>(locals),
     force,
-    converterVersion: 1
+    converterVersion: 1,
+    keepLocalEdits
   };
   return buildPlan(inputs);
 }
@@ -63,6 +69,28 @@ describe('buildPlan', (): void => {
     expect(action.overwritesLocalEdit).toBe(true);
   });
 
+  it('keeps a hand-edited note when told to keep local changes', (): void => {
+    const action: SyncAction = only(plan([['1', placed('1', 'ISO/A.md')]], [['1', local('ISO/A.md', { bodyHash: 'changed' })]], false, true));
+    expect(action.verb).toBe('keep-local');
+    expect(action.reason).toBe('changed in Obsidian, not sent');
+    expect(action.overwritesLocalEdit).toBe(false);
+    expect(action.previousPath).toBe('ISO/A.md');
+  });
+
+  it('keeps a hand-edited note when Confluence moved too, and says so', (): void => {
+    const action: SyncAction = only(plan([['1', placed('1', 'ISO/A.md', 4)]], [['1', local('ISO/A.md', { bodyHash: 'changed' })]], false, true));
+    expect(action.verb).toBe('keep-local');
+    expect(action.reason).toBe('changed in Obsidian, not sent; Confluence moved to version 4');
+  });
+
+  it('keeps a hand-edited note even when a resync is forced', (): void => {
+    expect(only(plan([['1', placed('1', 'ISO/A.md')]], [['1', local('ISO/A.md', { bodyHash: 'changed' })]], true, true)).verb).toBe('keep-local');
+  });
+
+  it('still updates an untouched note when told to keep local changes', (): void => {
+    expect(only(plan([['1', placed('1', 'ISO/A.md', 4)]], [['1', local('ISO/A.md')]], false, true)).verb).toBe('update');
+  });
+
   it('treats a note without a recorded hash as untouched', (): void => {
     expect(only(plan([['1', placed('1', 'ISO/A.md')]], [['1', local('ISO/A.md', { hash: '', bodyHash: 'anything' })]])).verb).toBe('keep');
   });
@@ -92,21 +120,25 @@ describe('buildPlan', (): void => {
     expect(plan([['f', folder]], [])).toEqual([]);
   });
 
-  it('orders actions create, update, move, trash, keep', (): void => {
+  it('orders actions create, update, move, trash, keep-local, keep', (): void => {
     const actions: Array<SyncAction> = plan(
       [
         ['k', placed('k', 'ISO/K.md')],
+        ['l', placed('l', 'ISO/L.md')],
         ['m', placed('m', 'ISO/M2.md')],
         ['u', placed('u', 'ISO/U.md', 5)],
         ['c', placed('c', 'ISO/C.md')]
       ],
       [
         ['k', local('ISO/K.md')],
+        ['l', local('ISO/L.md', { bodyHash: 'changed' })],
         ['m', local('ISO/M.md')],
         ['u', local('ISO/U.md')],
         ['t', local('ISO/T.md')]
-      ]
+      ],
+      false,
+      true
     );
-    expect(actions.map((action: SyncAction): string => action.verb)).toEqual(['create', 'update', 'move', 'trash', 'keep']);
+    expect(actions.map((action: SyncAction): string => action.verb)).toEqual(['create', 'update', 'move', 'trash', 'keep-local', 'keep']);
   });
 });

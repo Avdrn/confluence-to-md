@@ -47,3 +47,163 @@
   cursor: pointer;
   margin-left: 0.4em;
 }
+
+.confluence-sync-confirm .confluence-sync-muted {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+/* Review pane */
+
+.confluence-review {
+  padding-bottom: 4em;
+}
+
+.confluence-review .confluence-review-muted {
+  color: var(--text-muted);
+}
+
+.confluence-review-summary {
+  font-weight: var(--font-semibold);
+  margin-bottom: 0.6em;
+}
+
+.confluence-review-status {
+  border-left: 3px solid var(--color-green);
+  padding: 0.4em 0.8em;
+  margin-bottom: 0.6em;
+  background: var(--background-secondary);
+  border-radius: var(--radius-s);
+}
+
+.confluence-review-status.is-warn {
+  border-left-color: var(--color-orange);
+}
+
+.confluence-review-status-actions {
+  display: flex;
+  gap: 0.5em;
+  margin-top: 0.5em;
+  flex-wrap: wrap;
+}
+
+.confluence-review-card {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  padding: 0.6em 0.9em;
+  margin: 0.8em 0;
+}
+
+.confluence-review-card.is-held {
+  opacity: 0.6;
+}
+
+.confluence-review-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5em;
+  margin-bottom: 0.4em;
+}
+
+.confluence-review-card-label {
+  font-weight: var(--font-semibold);
+}
+
+.confluence-review-card-tools {
+  display: flex;
+  gap: 0.4em;
+}
+
+.confluence-review-small {
+  font-size: var(--font-ui-smaller);
+  padding: 0.1em 0.6em;
+  height: auto;
+}
+
+.confluence-review-rendered mark {
+  background: rgba(var(--color-green-rgb), 0.25);
+  color: inherit;
+  border-radius: 2px;
+}
+
+.confluence-review-rendered del {
+  color: var(--color-red);
+  text-decoration: line-through;
+}
+
+.confluence-review-rendered.is-added {
+  border-left: 3px solid var(--color-green);
+  padding-left: 0.6em;
+}
+
+.confluence-review-rendered.is-removed {
+  border-left: 3px solid var(--color-red);
+  padding-left: 0.6em;
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.confluence-review-rendered.is-unchanged {
+  color: var(--text-muted);
+  margin-top: 0.4em;
+}
+
+.confluence-review-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8em;
+}
+
+.confluence-review-column-title {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  margin-bottom: 0.2em;
+}
+
+.confluence-review-headsup {
+  background: rgba(var(--color-orange-rgb), 0.12);
+  border-left: 3px solid var(--color-orange);
+  border-radius: var(--radius-s);
+  padding: 0.4em 0.7em;
+  margin-top: 0.5em;
+  font-size: var(--font-ui-small);
+}
+
+.confluence-review-headsup-ok {
+  margin-left: 0.8em;
+  white-space: nowrap;
+}
+
+.confluence-review-card-switch {
+  margin-top: 0.5em;
+}
+
+.confluence-review-unchanged {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  display: flex;
+  gap: 0.6em;
+  align-items: center;
+  margin: 0.4em 0;
+}
+
+.confluence-review-footer {
+  position: sticky;
+  bottom: 0;
+  background: var(--background-primary);
+  border-top: 1px solid var(--background-modifier-border);
+  padding: 0.6em 0;
+  display: flex;
+  gap: 0.5em;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.confluence-review-message {
+  flex: 1 1 12em;
+}
+
+.confluence-review-done {
+  padding: 1em;
+}

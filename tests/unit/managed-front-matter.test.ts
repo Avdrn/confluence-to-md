@@ -48,9 +48,10 @@ describe('readManagedFrontMatter', (): void => {
       'confluence-title': 'T',
       'confluence-version': '4',
       'confluence-hash': 'abc',
-      'confluence-converter': 1
+      'confluence-converter': 1,
+      'confluence-parent-id': '9'
     });
-    expect(read).toEqual({ pageId: '123', spaceKey: 'ISO', title: 'T', version: 4, hash: 'abc', converter: 1 });
+    expect(read).toEqual({ pageId: '123', spaceKey: 'ISO', title: 'T', version: 4, hash: 'abc', converter: 1, parentId: '9' });
   });
 
   it('returns null for notes without a page id', (): void => {

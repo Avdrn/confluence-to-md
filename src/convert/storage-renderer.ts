@@ -81,6 +81,12 @@ export function renderStorage(root: StorageNode, users: UserDirectory, siteUrl: 
   return tidy(renderChildren(root, context));
 }
 
+/** Renders a run of sibling nodes on their own, as one piece of a segmented body. */
+export function renderNodes(nodes: ReadonlyArray<StorageNode>, users: UserDirectory, siteUrl: string): string {
+  const context: RenderContext = { users, listStack: [], inTable: false, inCode: false, siteUrl };
+  return tidy(nodes.map((node: StorageNode): string => render(node, context)).join(''));
+}
+
 /**
  * Trailing space and blank-line runs, over the finished document.
  *

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { withRetry } from '../../src/confluence/api/retry-policy';
+import { isRateLimitStatus, isTransientStatus, withRetry } from '../../src/confluence/api/retry-policy';
 import type { RetryOptions } from '../../src/confluence/api/retry-policy';
 import type { HttpResponse } from '../../src/confluence/api/request-fn.type';
 
@@ -19,14 +19,20 @@ function sequence(responses: Array<HttpResponse | Error>): () => Promise<HttpRes
   };
 }
 
-function options(delays: Array<number>): RetryOptions {
+function options(delays: Array<number>, write: boolean = false): RetryOptions {
+  let retryOn: (status: number) => boolean = isTransientStatus;
+  if (write) {
+    retryOn = isRateLimitStatus;
+  }
   return {
     maxAttempts: 5,
     baseDelayMs: 1000,
     maxDelayMs: 30000,
     sleep: async (ms: number): Promise<void> => {
       delays.push(ms);
-    }
+    },
+    retryOn,
+    retryOnFailure: !write
   };
 }
 
@@ -63,5 +69,18 @@ describe('withRetry', (): void => {
     const result: HttpResponse = await withRetry(sequence([response(500), response(500), response(500), response(500), response(502)]), options(delays));
     expect(result.status).toBe(502);
     expect(delays.length).toBe(4);
+  });
+
+  it('repeats a write only after a rate limit', async (): Promise<void> => {
+    const delays: Array<number> = [];
+    const result: HttpResponse = await withRetry(sequence([response(429, 1), response(500), response(200)]), options(delays, true));
+    expect(result.status).toBe(500);
+    expect(delays).toEqual([1000]);
+  });
+
+  it('does not repeat a write that failed on the network', async (): Promise<void> => {
+    const delays: Array<number> = [];
+    await expect(withRetry(sequence([new Error('gone'), response(200)]), options(delays, true))).rejects.toThrow('gone');
+    expect(delays).toEqual([]);
   });
 });

@@ -52,6 +52,37 @@ describe('ConfluenceClient', (): void => {
     });
   });
 
+  it('sends reads as GET and writes as PUT with a JSON body', async (): Promise<void> => {
+    const seen: Seen = { requests: [] };
+    const target: ConfluenceClient = client(fakeRequest(200, '{"ok":true}', seen));
+    await target.getJson('/wiki/api/v2/spaces');
+    const result: { ok: boolean } = await target.putJson('/wiki/api/v2/pages/1', { a: 1 });
+    expect(result).toEqual({ ok: true });
+    expect(seen.requests[0].method).toBe('GET');
+    expect(seen.requests[0].body).toBeUndefined();
+    expect(seen.requests[1].method).toBe('PUT');
+    expect(seen.requests[1].body).toBe('{"a":1}');
+    expect(seen.requests[1].contentType).toBe('application/json');
+  });
+
+  it('does not retry a PUT that the server failed', async (): Promise<void> => {
+    const seen: Seen = { requests: [] };
+    await expect(client(fakeRequest(500, 'boom', seen)).putJson('/x', {})).rejects.toBeInstanceOf(ConfluenceApiError);
+    expect(seen.requests.length).toBe(1);
+  });
+
+  it('reports a version conflict and keeps the detail of a rejected body', async (): Promise<void> => {
+    const seen: Seen = { requests: [] };
+    await client(fakeRequest(409, 'stale', seen)).putJson('/x', {}).catch((err: ConfluenceApiError): void => {
+      expect(err.isConflict()).toBe(true);
+    });
+    const long: string = 'x'.repeat(500);
+    await client(fakeRequest(400, long, seen)).putJson('/x', {}).catch((err: ConfluenceApiError): void => {
+      expect(err.isBadRequest()).toBe(true);
+      expect(err.message).toContain(long);
+    });
+  });
+
   it('returns bytes for binary downloads', async (): Promise<void> => {
     const seen: Seen = { requests: [] };
     const bytes: ArrayBuffer = await client(fakeRequest(200, 'hi', seen)).getBinary('/file');

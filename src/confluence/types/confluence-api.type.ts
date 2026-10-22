@@ -4,6 +4,14 @@ export interface V2Version {
   number: number;
 }
 
+/** `version` as the v1 content API expands it: who saved it and when. */
+export interface V1Version {
+  number: number;
+  when?: string;
+  message?: string;
+  by?: { displayName?: string; accountId?: string };
+}
+
 export interface V2Links {
   webui?: string;
   next?: string;
@@ -16,6 +24,7 @@ export interface V2Page {
   parentId?: string | null;
   parentType?: string | null;
   version?: V2Version;
+  body?: { storage?: { value: string } };
   _links?: V2Links;
 }
 
@@ -67,7 +76,8 @@ export interface CqlSearchResponse {
 export interface ConfluencePage {
   id: string;
   title: string;
-  version: V2Version;
+  status?: string;
+  version: V1Version;
   body?: { storage?: { value: string } };
   _links?: { webui?: string };
 }
@@ -79,6 +89,7 @@ export interface ConfluencePageList {
 export interface ConfluenceUser {
   displayName: string;
   email?: string;
+  accountId?: string;
 }
 
 export interface ConfluenceAttachment {

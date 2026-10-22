@@ -19,6 +19,16 @@ export class ConfluenceApiError extends Error {
   public isRateLimit(): boolean {
     return this.status === 429;
   }
+
+  /** The version number sent with an update is not the next one: someone else saved first. */
+  public isConflict(): boolean {
+    return this.status === 409;
+  }
+
+  /** Confluence rejected the request itself, for example a body it cannot parse. */
+  public isBadRequest(): boolean {
+    return this.status === 400;
+  }
 }
 
 function describe(status: number, url: string, detail: string): string {

@@ -1,6 +1,8 @@
+import type { TFile } from 'obsidian';
 import type ConfluenceSyncPlugin from '../main';
 
 export function registerCommands(plugin: ConfluenceSyncPlugin): void {
+  registerNoteCommands(plugin);
   plugin.addCommand({
     id: 'sync-this-space',
     name: 'Sync this space',
@@ -67,5 +69,52 @@ export function registerCommands(plugin: ConfluenceSyncPlugin): void {
       }
       return true;
     }
+  });
+}
+
+/** Commands on the active note, offered only while it mirrors a Confluence page. */
+export function registerNoteCommands(plugin: ConfluenceSyncPlugin): void {
+  const onSyncedNote = (run: (file: TFile) => void): ((checking: boolean) => boolean) =>
+    (checking: boolean): boolean => {
+      const file: TFile | null = plugin.activeSyncedFile();
+      if (!file) {
+        return false;
+      }
+      if (!checking) {
+        run(file);
+      }
+      return true;
+    };
+
+  plugin.addCommand({
+    id: 'pull-this-note',
+    name: 'Get the Confluence version of this note',
+    checkCallback: onSyncedNote((file: TFile): void => {
+      void plugin.pullNoteFlow(file);
+    })
+  });
+
+  plugin.addCommand({
+    id: 'push-this-note',
+    name: 'Send my changes in this note to Confluence',
+    checkCallback: onSyncedNote((file: TFile): void => {
+      void plugin.openReview(file, 'push');
+    })
+  });
+
+  plugin.addCommand({
+    id: 'compare-this-note',
+    name: 'Compare this note with Confluence',
+    checkCallback: onSyncedNote((file: TFile): void => {
+      void plugin.openReview(file, 'compare');
+    })
+  });
+
+  plugin.addCommand({
+    id: 'open-in-confluence',
+    name: 'Open this note in Confluence',
+    checkCallback: onSyncedNote((file: TFile): void => {
+      plugin.openInConfluence(file);
+    })
   });
 }

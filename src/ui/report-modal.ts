@@ -23,6 +23,7 @@ export class ReportModal extends Modal {
       this.renderSection('Moved', this.report.moved);
       this.renderSection('Trashed', this.report.trashed);
       this.renderSection('Local edits overwritten', this.report.overwrittenLocalEdits);
+      this.renderSection('Changes kept, not in Confluence yet', this.report.keptLocal);
       this.renderSection('Failed', this.report.failed);
     }
     this.renderWarnings();

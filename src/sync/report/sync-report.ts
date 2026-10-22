@@ -14,6 +14,8 @@ export class SyncReport {
   public readonly moved: Array<ReportEntry> = new Array<ReportEntry>();
   public readonly trashed: Array<ReportEntry> = new Array<ReportEntry>();
   public readonly overwrittenLocalEdits: Array<ReportEntry> = new Array<ReportEntry>();
+  /** Notes changed in Obsidian that the sync left alone. */
+  public readonly keptLocal: Array<ReportEntry> = new Array<ReportEntry>();
   public readonly failed: Array<ReportEntry> = new Array<ReportEntry>();
   public readonly warnings: Array<string> = new Array<string>();
   /** The plan, kept for a preview. */
@@ -51,6 +53,9 @@ export class SyncReport {
     if (this.overwrittenLocalEdits.length > 0) {
       parts.push(`${this.overwrittenLocalEdits.length} local edit(s) overwritten`);
     }
+    if (this.keptLocal.length > 0) {
+      parts.push(`${this.keptLocal.length} kept with changes not in Confluence yet`);
+    }
     let summary: string = `${this.spaceKey}: nothing changed, ${this.kept} note(s) up to date`;
     if (parts.length > 0) {
       summary = `${this.spaceKey}: ${parts.join(', ')}`;
@@ -68,6 +73,7 @@ export class SyncReport {
     appendSection(lines, 'Moved', this.moved);
     appendSection(lines, 'Trashed', this.trashed);
     appendSection(lines, 'Local edits overwritten', this.overwrittenLocalEdits);
+    appendSection(lines, 'Changes kept, not in Confluence yet', this.keptLocal);
     appendSection(lines, 'Failed', this.failed);
     if (this.warnings.length > 0) {
       lines.push('## Warnings', '', ...this.warnings.map((warning: string): string => `- ${warning}`), '');
@@ -106,6 +112,7 @@ export function mergeReports(reports: ReadonlyArray<SyncReport>): SyncReport {
     merged.moved.push(...report.moved);
     merged.trashed.push(...report.trashed);
     merged.overwrittenLocalEdits.push(...report.overwrittenLocalEdits);
+    merged.keptLocal.push(...report.keptLocal);
     merged.failed.push(...report.failed);
     merged.warnings.push(...report.warnings.map((warning: string): string => `${report.spaceKey}: ${warning}`));
     merged.planned.push(...report.planned);

@@ -8,6 +8,10 @@ export interface PageBody {
   version: number;
   storage: string;
   webUrl: string;
+  /** Who saved this version, and when (ISO 8601), for the push review. '' when Confluence did not say. */
+  versionBy: string;
+  versionById: string;
+  versionWhen: string;
 }
 
 /** One page with its storage body, fetched only when the plan says it is needed. */
@@ -20,6 +24,9 @@ export async function fetchPageBody(client: ConfluenceClient, pageId: string): P
     title: page.title,
     version: page.version.number,
     storage: page.body?.storage?.value ?? '',
-    webUrl: webUrlOf(client.site, page._links?.webui)
+    webUrl: webUrlOf(client.site, page._links?.webui),
+    versionBy: page.version.by?.displayName ?? '',
+    versionById: page.version.by?.accountId ?? '',
+    versionWhen: page.version.when ?? ''
   };
 }

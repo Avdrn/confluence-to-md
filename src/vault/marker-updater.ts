@@ -28,3 +28,17 @@ export async function updateRecordedHash(app: App, file: TFile, hash: string): P
     frontmatter[PROPERTY.hash] = hash;
   });
 }
+
+/** Marks a note whose changes a sync kept: they exist in Obsidian only, as of `syncTime`. */
+export async function setUnpushedFlag(app: App, file: TFile, syncTime: string): Promise<void> {
+  await app.fileManager.processFrontMatter(file, (frontmatter: MarkerProperties): void => {
+    frontmatter[PROPERTY.unpushed] = syncTime;
+  });
+}
+
+/** Removes the mark once the changes were sent to Confluence or replaced by its version. */
+export async function clearUnpushedFlag(app: App, file: TFile): Promise<void> {
+  await app.fileManager.processFrontMatter(file, (frontmatter: MarkerProperties): void => {
+    delete frontmatter[PROPERTY.unpushed];
+  });
+}

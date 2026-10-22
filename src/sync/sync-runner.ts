@@ -19,7 +19,7 @@ import type { ConfluenceSyncSettings } from '../settings/plugin-settings';
 import type { ProgressReporter } from '../shared/progress';
 import type { SyncStatusBar } from '../ui/status-bar';
 import type { SpaceScope } from '../vault/marker-notes';
-import type { SyncOptions } from './sync-options';
+import type { KeepEditsAnswer, SyncOptions } from './sync-options';
 
 export interface SyncRunnerDeps {
   app: App;
@@ -27,7 +27,10 @@ export interface SyncRunnerDeps {
   settings: () => ConfluenceSyncSettings;
   statusBar: () => SyncStatusBar | null;
   confirmTrash: (count: number) => Promise<boolean>;
+  confirmKeepEdits: (count: number) => Promise<KeepEditsAnswer>;
   onFinished: (report: SyncReport) => void;
+  /** True while a single note is being sent or pulled, which a sync must not interrupt. */
+  otherWorkRunning: () => boolean;
 }
 
 export interface RunOptions {
@@ -69,6 +72,10 @@ export class SyncRunner {
       notify('A Confluence sync is already running.');
       return null;
     }
+    if (this.deps.otherWorkRunning()) {
+      notify('A note is being sent to or pulled from Confluence. Try again when it is done.');
+      return null;
+    }
     if (scopes.length === 0) {
       return null;
     }
@@ -108,10 +115,16 @@ export class SyncRunner {
       app: this.deps.app,
       client,
       scope,
-      options: { dryRun: options.dryRun, force: options.force, downloadAttachments: settings.downloadAttachments },
+      options: {
+        dryRun: options.dryRun,
+        force: options.force,
+        downloadAttachments: settings.downloadAttachments,
+        unpushedEdits: settings.unpushedEditsOnSync
+      },
       progress: this.progressFor(scope.spaceKey),
       token,
       confirmTrash: this.deps.confirmTrash,
+      confirmKeepEdits: this.deps.confirmKeepEdits,
       trashConfirmThreshold: settings.confirmTrashAbove
     });
     try {

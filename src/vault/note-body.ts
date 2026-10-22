@@ -11,5 +11,10 @@ export async function bodyOf(app: App, file: TFile): Promise<string> {
   if (end !== undefined) {
     return content.slice(end).replace(/^\r?\n/, '');
   }
-  return content.replace(FRONT_MATTER_BLOCK, '');
+  return stripFrontMatter(content);
+}
+
+/** The body of note text that is not on disk yet, such as an editor's buffer. */
+export function stripFrontMatter(content: string): string {
+  return content.replace(BYTE_ORDER_MARK, '').replace(FRONT_MATTER_BLOCK, '');
 }

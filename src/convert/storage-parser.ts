@@ -72,10 +72,12 @@ interface NodeDraft {
   attrs: Map<string, string>;
   text: string;
   children: Array<NodeDraft>;
+  start: number;
+  end: number;
 }
 
-function draft(tag: string, attrs: Map<string, string> = new Map<string, string>(), text: string = ''): NodeDraft {
-  return { tag, attrs, text, children: [] };
+function draft(tag: string, attrs: Map<string, string>, text: string, start: number, end: number): NodeDraft {
+  return { tag, attrs, text, children: [], start, end };
 }
 
 /**
@@ -83,20 +85,20 @@ function draft(tag: string, attrs: Map<string, string> = new Map<string, string>
  * formed, and a page that fails to parse is worse than one that parses loosely.
  */
 export function parseStorage(xhtml: string): StorageNode {
-  const root: NodeDraft = draft('root');
-  const stack: Array<NodeDraft> = [root];
   const source: string = xhtml ?? '';
+  const root: NodeDraft = draft('root', new Map<string, string>(), '', 0, source.length);
+  const stack: Array<NodeDraft> = [root];
   let cursor: number = 0;
 
   while (cursor < source.length) {
     TAG_OPEN.lastIndex = cursor;
     const opening: RegExpExecArray | null = TAG_OPEN.exec(source);
     if (!opening) {
-      pushText(stack, source.slice(cursor));
+      pushText(stack, source.slice(cursor), cursor);
       break;
     }
     if (opening.index > cursor) {
-      pushText(stack, source.slice(cursor, opening.index));
+      pushText(stack, source.slice(cursor, opening.index), cursor);
     }
     cursor = consumeMarkup(source, opening.index, stack);
   }
@@ -108,8 +110,9 @@ function consumeMarkup(source: string, start: number, stack: Array<NodeDraft>): 
   if (source.startsWith('<![CDATA[', start)) {
     const end: number = source.indexOf(']]>', start);
     // CDATA is raw text by definition, so it is not entity-decoded.
-    stack[stack.length - 1].children.push(draft('', new Map<string, string>(), sliceUntil(source, start + 9, end)));
-    return continueAfter(source, end, 3);
+    const after: number = continueAfter(source, end, 3);
+    stack[stack.length - 1].children.push(draft('', new Map<string, string>(), sliceUntil(source, start + 9, end), start, after));
+    return after;
   }
   if (source.startsWith('<!--', start)) {
     return continueAfter(source, source.indexOf('-->', start), 3);
@@ -120,19 +123,19 @@ function consumeMarkup(source: string, start: number, stack: Array<NodeDraft>): 
 
   const tagEnd: number = findTagEnd(source, start);
   if (tagEnd === -1) {
-    pushText(stack, source.slice(start));
+    pushText(stack, source.slice(start), start);
     return source.length;
   }
   const inner: string = source.slice(start + 1, tagEnd);
   if (!inner) {
-    pushText(stack, '<');
+    pushText(stack, '<', start);
     return start + 1;
   }
   if (inner.startsWith('/')) {
-    closeTag(stack, inner.slice(1).trim().toLowerCase());
+    closeTag(stack, inner.slice(1).trim().toLowerCase(), tagEnd + 1);
     return tagEnd + 1;
   }
-  openTag(stack, inner);
+  openTag(stack, inner, start, tagEnd + 1);
   return tagEnd + 1;
 }
 
@@ -172,14 +175,14 @@ function findTagEnd(source: string, start: number): number {
   return -1;
 }
 
-function pushText(stack: Array<NodeDraft>, raw: string): void {
+function pushText(stack: Array<NodeDraft>, raw: string, start: number): void {
   if (!raw) {
     return;
   }
-  stack[stack.length - 1].children.push(draft('', new Map<string, string>(), decodeEntities(raw)));
+  stack[stack.length - 1].children.push(draft('', new Map<string, string>(), decodeEntities(raw), start, start + raw.length));
 }
 
-function openTag(stack: Array<NodeDraft>, inner: string): void {
+function openTag(stack: Array<NodeDraft>, inner: string, start: number, end: number): void {
   const selfClosing: boolean = inner.endsWith('/');
   let body: string = inner;
   if (selfClosing) {
@@ -190,7 +193,7 @@ function openTag(stack: Array<NodeDraft>, inner: string): void {
     return;
   }
   const tag: string = nameMatch[1].toLowerCase();
-  const node: NodeDraft = draft(tag, parseAttributes(body.slice(nameMatch[1].length)));
+  const node: NodeDraft = draft(tag, parseAttributes(body.slice(nameMatch[1].length)), '', start, end);
   stack[stack.length - 1].children.push(node);
   if (!selfClosing && !VOID_TAGS.has(tag)) {
     stack.push(node);
@@ -201,9 +204,10 @@ function openTag(stack: Array<NodeDraft>, inner: string): void {
  * Unwinds to the nearest matching open tag. A stray end tag with no match is
  * ignored rather than closing something it did not open.
  */
-function closeTag(stack: Array<NodeDraft>, tag: string): void {
+function closeTag(stack: Array<NodeDraft>, tag: string, end: number): void {
   for (let depth: number = stack.length - 1; depth > 0; depth--) {
     if (stack[depth].tag === tag) {
+      stack[depth].end = end;
       stack.length = depth;
       return;
     }
@@ -230,7 +234,9 @@ function freeze(node: NodeDraft): StorageNode {
     tag: node.tag,
     attrs,
     text: node.text,
-    children: node.children.map(freeze)
+    children: node.children.map(freeze),
+    start: node.start,
+    end: node.end
   };
 }
 

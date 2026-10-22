@@ -28,6 +28,8 @@ export interface PlanInputs {
   local: ReadonlyMap<string, LocalNoteState>;
   force: boolean;
   converterVersion: number;
+  /** Leave hand-edited notes alone until their changes are sent, instead of overwriting them. */
+  keepLocalEdits: boolean;
 }
 
 /** Verbs whose page body has to be downloaded. */
@@ -71,6 +73,15 @@ function decide(placed: PlacedContent, local: LocalNoteState | undefined, inputs
     return { ...base, verb: 'create', previousPath: '', reason: 'new', overwritesLocalEdit: false };
   }
   const edited: boolean = wasEditedByHand(local);
+  if (edited && inputs.keepLocalEdits) {
+    return {
+      ...base,
+      verb: 'keep-local',
+      previousPath: local.path,
+      reason: keptReason(local, placed),
+      overwritesLocalEdit: false
+    };
+  }
   const update: Omit<SyncAction, 'reason'> = {
     ...base,
     verb: 'update',
@@ -105,8 +116,16 @@ function decide(placed: PlacedContent, local: LocalNoteState | undefined, inputs
  * True when the body no longer hashes to what the last sync recorded. A note
  * with no recorded hash counts as untouched.
  */
-function wasEditedByHand(local: LocalNoteState): boolean {
+export function wasEditedByHand(local: LocalNoteState): boolean {
   return local.hash.length > 0 && local.bodyHash !== local.hash;
+}
+
+/** A kept note is behind as well when Confluence moved on; the report should say so. */
+function keptReason(local: LocalNoteState, placed: PlacedContent): string {
+  if (local.version !== placed.node.version) {
+    return `changed in Obsidian, not sent; Confluence moved to version ${placed.node.version}`;
+  }
+  return 'changed in Obsidian, not sent';
 }
 
 export function needsBody(action: SyncAction): boolean {
