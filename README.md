@@ -5,7 +5,7 @@ Keeps folders in your vault up to date with Confluence Cloud spaces, and sends t
 ## What it does
 
 - A note with `confluence-space: KEY` in its front-matter marks its folder as the root of that space.
-- Every page of the space becomes a note named after its title. Pages with children become folder notes (`Policies/Policies.md`). Confluence folders become folders. Databases, whiteboards and embeds become short stub notes that link to Confluence.
+- Every page of the space becomes a note named after its title. Pages with children become folder notes (`Policies/Policies.md`). Confluence folders become folders. Databases become notes holding one table with every row. Whiteboards and embeds become short stub notes that link to Confluence.
 - Page links become wikilinks, attachments are downloaded into `_attachments/<page id>/`, panels become callouts, tables stay tables.
 - A second sync is cheap: only pages whose Confluence version moved are fetched again. Unchanged notes are never rewritten.
 - Renamed or moved pages are moved in the vault. Pages deleted in Confluence are trashed the way your "Deleted files" setting says.
@@ -97,7 +97,7 @@ The marker note keeps `confluence-space`, which you set, plus `confluence-last-s
 ## Limits
 
 - Blog posts are not synced.
-- Database rows cannot be read through the Confluence API, so a database becomes a stub note.
+- A database note is read only: Confluence has no API that writes rows. Its rows come from an endpoint Atlassian marks experimental. On a site where it is not available yet the database becomes a stub note, the report says so, and "Resync this space" tries again. Lookup columns (entry details, backlinks, page details, labels, page status, Jira details) are not returned by the API and are named under the table. Rich text in a cell keeps its paragraphs and list items, but not its formatting.
 - An attachment that changes without a page edit is not noticed. Run "Resync this space" to refresh it.
 - Sending works for pages that already exist in Confluence. New notes, renamed notes and new images are not sent yet.
 - When Confluence changed since the last sync, the review does not merge the two sides yet: get the Confluence version first.

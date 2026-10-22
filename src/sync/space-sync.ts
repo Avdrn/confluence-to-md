@@ -23,7 +23,8 @@ import { buildPlan, needsBody, wasEditedByHand } from './plan/build-plan';
 import { hashBody } from './plan/body-hash';
 import { resolveLinks } from './links/link-resolver';
 import { serializeFrontMatter } from './front-matter/managed-front-matter';
-import { stubBody } from './stubs/stub-note';
+import { databaseStubBody, stubBody } from './stubs/stub-note';
+import { renderDatabaseBody } from './database/database-note';
 import { SyncReport } from './report/sync-report';
 import { AttachmentSync } from './attachments/attachment-sync';
 import { buildManagedIndex, resolveFolder } from '../vault/managed-note-index';
@@ -352,7 +353,9 @@ export class SpaceSync {
     let body: string;
     let version: number = node.version;
     let webUrl: string = node.webUrl;
-    if (STUB_TYPES.has(node.type)) {
+    if (node.type === 'database') {
+      body = await this.databaseBody(node, placement);
+    } else if (STUB_TYPES.has(node.type)) {
       body = stubBody(node);
     } else {
       const page: PageBody = await fetchPageBody(this.context.client, node.id);
@@ -377,6 +380,24 @@ export class SpaceSync {
     });
     await this.writer.write(placed.notePath, `${frontMatter}${body}\n`);
     this.record(action, placed.notePath);
+  }
+
+  /**
+   * The rows come from an endpoint Atlassian marks experimental, and a site
+   * without it answers 404 for a database the listing just returned. That
+   * database still gets a note, one that says why it holds no rows.
+   */
+  private async databaseBody(node: ContentNode, placement: ContentPlacement): Promise<string> {
+    try {
+      return await renderDatabaseBody(this.context.client, this.users, node, placement);
+    } catch (err) {
+      if (err instanceof CancelledError) {
+        throw err;
+      }
+      const detail: string = errorMessage(err);
+      this.report.addWarning(`The rows of database "${node.title}" could not be read: ${detail}`);
+      return databaseStubBody(node, detail);
+    }
   }
 
   private async renderBody(

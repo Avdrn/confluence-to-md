@@ -1,7 +1,7 @@
 export type ContentType = 'page' | 'folder' | 'database' | 'whiteboard' | 'embed';
 
-/** Content with no body any API will return, mirrored as a stub note. */
-export const STUB_TYPES: ReadonlySet<ContentType> = new Set<ContentType>(['database', 'whiteboard', 'embed']);
+/** Content with no body any API returns, mirrored as a stub note. A database has rows, read separately. */
+export const STUB_TYPES: ReadonlySet<ContentType> = new Set<ContentType>(['whiteboard', 'embed']);
 
 /** One entry in a space's content tree, whatever its type. */
 export interface ContentNode {

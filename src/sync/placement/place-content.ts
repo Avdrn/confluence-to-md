@@ -11,7 +11,7 @@
  *     <root>/<Leaf page>.md
  *     <root>/<Parent page>/<Parent page>.md   a page with children owns a folder (folder note)
  *     <root>/<Folder>/                  a Confluence folder is a directory only
- *     <root>/<Database>.md              a stub for content without a body
+ *     <root>/<Database>.md              a table of its rows; a whiteboard or embed is a stub
  */
 
 import { MIN_NAME_LENGTH, sanitizeFileName, shortenName } from './file-name';

@@ -76,7 +76,7 @@ export class NoteActions {
     }
   }
 
-  /** Synced page notes only: not the marker note, not a stub for a database or whiteboard. */
+  /** Synced page notes only: not the marker note, not a database, whiteboard or embed note. */
   private fieldsOf(file: TFile | null): ManagedFrontMatterFields | null {
     if (!file) {
       return null;

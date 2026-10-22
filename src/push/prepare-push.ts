@@ -65,7 +65,7 @@ export async function preparePush(context: PushContext, file: TFile, scope: Spac
     throw new Error('This note is not a synced Confluence page.');
   }
   if ((frontmatter as Record<string, unknown>)[PROPERTY.type]) {
-    throw new Error('This note stands for a Confluence database, whiteboard or embed, which cannot be edited from Obsidian.');
+    throw new Error('This note mirrors a Confluence database, whiteboard or embed. It can be read from Confluence but not edited from Obsidian.');
   }
   const index: ManagedIndex = buildManagedIndex(app, scope.rootFolder, scope.spaceKey);
   if (index.duplicates.includes(file.path)) {

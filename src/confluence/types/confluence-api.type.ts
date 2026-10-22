@@ -104,3 +104,49 @@ export interface ConfluenceAttachment {
 export interface ConfluenceAttachmentList {
   results: Array<ConfluenceAttachment>;
 }
+
+/**
+ * A field (column) of a database, from `GET /wiki/api/v2/databases/{id}/fields`.
+ * The settings differ per type; only what the renderer reads is typed.
+ */
+export interface V2DatabaseField {
+  id: string;
+  name: string;
+  type: string;
+  settings?: V2DatabaseFieldSettings;
+}
+
+export interface V2DatabaseFieldSettings {
+  richText?: boolean;
+  includesTime?: boolean;
+  options?: Array<{ id: string; label: string }>;
+  format?: { type?: string; prefix?: string; suffix?: string; decimalPlaces?: number };
+}
+
+/**
+ * One field of one entry. Text carries `plain` and an ADF document `rich`;
+ * `plain` runs the blocks together, so the renderer reads `rich` when it is
+ * there. Everything else carries `value`, whose shape follows `type`: a string
+ * for numbers and dates, a boolean for checkboxes, a list of references for
+ * select, user, hyperlink, page, entry, Jira and attachment fields.
+ */
+export interface V2DatabaseFieldValue {
+  type: string;
+  plain?: string | null;
+  rich?: unknown;
+  value?: unknown;
+}
+
+/** A row, from `GET /wiki/api/v2/databases/{id}/entries`. Every field is present; unset ones hold a null value. */
+export interface V2DatabaseEntry {
+  id: string;
+  databaseId?: string;
+  values: Record<string, V2DatabaseFieldValue>;
+}
+
+/** One page of a Databases API listing. `next` is site-relative (`/wiki/api/v2/...`). */
+export interface V2DatabaseList<T> {
+  results?: Array<T>;
+  _links?: { next?: string };
+  meta?: { hasMore?: boolean };
+}
