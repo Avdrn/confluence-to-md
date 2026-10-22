@@ -56,6 +56,8 @@ For development, `OBSIDIAN_PLUGIN_DIR=<vault>/.obsidian/plugins/confluence-space
 
 The review stops before anything is sent when Confluence changed since the note was last synced, or when someone holds unpublished changes on the page. In the first case, get the Confluence version first and make your changes again.
 
+Live docs work too. A live doc shows what is being edited right now rather than its latest version, so a send saves the new version and then writes the same text into the live doc. When someone edited the live doc in the last minutes and Confluence has not saved that as a version yet, the review warns you that sending replaces their edits.
+
 What cannot be sent from a note: status labels, person mentions, Jira issue lists, diagrams, dates, the automatic table of contents and child-page lists, text pulled in from another page, column widths and merged cells, image sizes, and task assignees. All of these survive untouched as long as you do not edit the block they sit in; when you do, the review says what will be lost.
 
 Other commands:

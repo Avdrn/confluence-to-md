@@ -7,6 +7,7 @@ import { MarkdownView } from 'obsidian';
 import type { App, TFile } from 'obsidian';
 import { fetchPageBody } from '../confluence/page-body';
 import { fetchDraft } from '../confluence/page-draft';
+import { fetchLiveContent, isLiveDoc } from '../confluence/live-doc';
 import { listAttachments } from '../confluence/attachments-api';
 import { fetchIncludedBody, includedPageOf } from '../confluence/include-resolver';
 import { collectMentionIds } from '../convert/mention-ids';
@@ -17,12 +18,14 @@ import { attachmentFolder } from '../sync/attachments/attachment-folder';
 import { PROPERTY, readManagedFrontMatter } from '../sync/front-matter/managed-front-matter';
 import { buildManagedIndex } from '../vault/managed-note-index';
 import { bodyOf, stripFrontMatter } from '../vault/note-body';
+import { baseMarkdown } from './base-markdown';
 import { storageTargets } from './link-mapper';
 import { assess } from './preflight';
 import { childrenOf, pagesByTitleOf } from './space-links';
 import type { ConfluenceClient } from '../confluence/api/confluence-client';
 import type { PageBody } from '../confluence/page-body';
 import type { PageDraft } from '../confluence/page-draft';
+import type { LiveContent } from '../confluence/live-doc';
 import type { UserDirectory } from '../confluence/user-directory';
 import type { ConfluenceAttachment } from '../confluence/types/confluence-api.type';
 import type { ManagedFrontMatterFields } from '../sync/front-matter/managed-front-matter';
@@ -43,6 +46,8 @@ export interface PreparedPush {
   scope: SpaceScope;
   fields: ManagedFrontMatterFields;
   remote: PageBody;
+  /** A live doc shows its live content, which a send has to write as well. */
+  live: boolean;
   draft: PageDraft | null;
   includes: Map<number, string>;
   names: ReadonlyMap<string, string>;
@@ -67,7 +72,7 @@ export async function preparePush(context: PushContext, file: TFile, scope: Spac
     throw new Error('Another note already mirrors this page. Keep one of the two.');
   }
   const remote: PageBody = await fetchPageBody(client, fields.pageId);
-  const draft: PageDraft | null = await fetchDraft(client, fields.pageId, remote.versionWhen);
+  const live: boolean = await isLiveDoc(client, fields.pageId);
   const includes: Map<number, string> = await includedBodies(client, remote.storage, scope.spaceKey);
   const names: ReadonlyMap<string, string> = await context.users.resolve(mentionIds(remote.storage, includes));
   const own: Array<ConfluenceAttachment> = await listAttachments(client, fields.pageId);
@@ -85,8 +90,14 @@ export async function preparePush(context: PushContext, file: TFile, scope: Spac
     attachments,
     children: childrenOf(index, fields.pageId)
   };
+  let draft: PageDraft | null;
+  if (live) {
+    draft = await unsavedLiveEdits(client, fields.pageId, remote.storage, names, links);
+  } else {
+    draft = await fetchDraft(client, fields.pageId, remote.versionWhen);
+  }
   return {
-    file, scope, fields, remote, draft, includes, names, links,
+    file, scope, fields, remote, live, draft, includes, names, links,
     targets: storageTargets(app, file.path, scope.spaceKey, client.site, attachmentIndex)
   };
 }
@@ -114,6 +125,29 @@ export async function bodyNow(app: App, file: TFile): Promise<string> {
     }
   }
   return bodyOf(app, file);
+}
+
+/**
+ * Edits someone made in a live doc that no version holds yet. A send writes
+ * the live content, so these would be replaced. Compared as the note would
+ * read, so markup Confluence rewrites on save does not count. Include bodies
+ * are keyed by their offset in one body, so both sides render without them.
+ */
+async function unsavedLiveEdits(
+  client: ConfluenceClient,
+  pageId: string,
+  storage: string,
+  names: ReadonlyMap<string, string>,
+  links: LinkResolveOptions
+): Promise<PageDraft | null> {
+  const liveNow: LiveContent | null = await fetchLiveContent(client, pageId);
+  if (!liveNow || !liveNow.storage.trim()) {
+    return null;
+  }
+  if (baseMarkdown(liveNow.storage, names, links).body === baseMarkdown(storage, names, links).body) {
+    return null;
+  }
+  return { by: liveNow.by, when: liveNow.when, live: true };
 }
 
 async function includedBodies(client: ConfluenceClient, storage: string, spaceKey: string): Promise<Map<number, string>> {

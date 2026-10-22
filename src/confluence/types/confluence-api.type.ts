@@ -21,6 +21,8 @@ export interface V2Page {
   id: string;
   title: string;
   status?: string;
+  /** `live` for a live doc. */
+  subtype?: string;
   parentId?: string | null;
   parentType?: string | null;
   version?: V2Version;

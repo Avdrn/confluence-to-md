@@ -11,8 +11,10 @@
 import type { App, TFile } from 'obsidian';
 import { ConfluenceApiError } from '../confluence/api/api-error';
 import { fetchCurrentUser } from '../confluence/current-user';
+import { writeLiveContent } from '../confluence/live-doc';
 import { fetchPageBody } from '../confluence/page-body';
 import { updatePage } from '../confluence/page-write';
+import { logError } from '../shared/log';
 import { PROPERTY } from '../sync/front-matter/managed-front-matter';
 import { hashBody } from '../sync/plan/body-hash';
 import { bodyNow } from './prepare-push';
@@ -36,7 +38,8 @@ export interface PushRequest {
 }
 
 export type PushOutcome =
-  | { kind: 'sent'; version: number; rerendered: boolean }
+  /** `liveFailed`: the version was saved, but the live doc did not take it, so readers may not see it. */
+  | { kind: 'sent'; version: number; rerendered: boolean; liveFailed: boolean }
   | { kind: 'stale' }
   | { kind: 'conflict' }
   | { kind: 'nothing' };
@@ -80,6 +83,11 @@ export async function pushNote(deps: PushDeps, request: PushRequest): Promise<Pu
     // saved by this account carries the proof.
     version = await landedVersion(client, prepared.fields.pageId, expected, err);
   }
+  // After the version, so a refused version leaves the live doc untouched.
+  let liveFailed: boolean = false;
+  if (prepared.live) {
+    liveFailed = !(await updateLiveDoc(client, prepared, storage));
+  }
   const sentEverything: boolean = sending.size === assessment.changes.length;
   const rendered: string = assessment.renderedFor(storage);
   await app.fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>): void => {
@@ -94,7 +102,18 @@ export async function pushNote(deps: PushDeps, request: PushRequest): Promise<Pu
     await pullNote({ app, client, users: deps.users, downloadAttachments: request.downloadAttachments }, file, prepared.scope);
     rerendered = true;
   }
-  return { kind: 'sent', version, rerendered };
+  return { kind: 'sent', version, rerendered, liveFailed };
+}
+
+/** The version is already saved, so a failure here is reported, not thrown. */
+async function updateLiveDoc(client: ConfluenceClient, prepared: PreparedPush, storage: string): Promise<boolean> {
+  try {
+    await writeLiveContent(client, { id: prepared.fields.pageId, title: prepared.remote.title, storage });
+    return true;
+  } catch (err) {
+    logError(`The live doc ${prepared.fields.pageId} did not take the sent version.`, err);
+    return false;
+  }
 }
 
 async function landedVersion(client: ConfluenceClient, pageId: string, expected: number, cause: unknown): Promise<number> {

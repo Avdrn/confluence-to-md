@@ -20,14 +20,20 @@ interface Fake {
   client: ConfluenceClient;
 }
 
-function fake(putStatus: number): Fake {
+/** `livePutStatus` answers every PUT after the first: the write into a live doc. */
+function fake(putStatus: number, livePutStatus: number = putStatus): Fake {
   const frontmatter: Record<string, unknown> = { 'confluence-version': 12, 'confluence-hash': 'old', 'confluence-unpushed': '2026-10-22' };
   const requests: Array<HttpRequest> = [];
+  let puts: number = 0;
   const request: RequestFn = async (sent: HttpRequest): Promise<HttpResponse> => {
     requests.push(sent);
     let status: number = 200;
     if (sent.method === 'PUT') {
-      status = putStatus;
+      puts++;
+      status = livePutStatus;
+      if (puts === 1) {
+        status = putStatus;
+      }
     }
     return { status, retryAfterSeconds: 0, text: (): string => '{"version":{"number":13}}', arrayBuffer: (): ArrayBuffer => new ArrayBuffer(0) };
   };
@@ -45,11 +51,12 @@ function fake(putStatus: number): Fake {
   return { app, frontmatter, requests, client };
 }
 
-function requestFor(sending: Array<number>, bodyHash: string = hashBody(BODY)): PushRequest {
+function requestFor(sending: Array<number>, bodyHash: string = hashBody(BODY), live: boolean = false): PushRequest {
   const prepared: PreparedPush = {
     file: { path: 'DOCS/Page.md' } as TFile,
     fields: { pageId: '42', spaceKey: 'DOCS', title: 'Page', version: 12, hash: 'old', converter: 2, parentId: '' },
-    remote: { title: 'Page in Confluence' }
+    remote: { title: 'Page in Confluence' },
+    live
   } as unknown as PreparedPush;
   const assessment: PushAssessment = {
     noteVersion: 12,
@@ -64,7 +71,7 @@ describe('pushNote', (): void => {
   it('sends the next version with the current title and records what Confluence now holds', async (): Promise<void> => {
     const { app, frontmatter, requests, client } = fake(200);
     const outcome: PushOutcome = await pushNote({ app, client, users: new UserDirectory(client) }, requestFor([0]));
-    expect(outcome).toEqual({ kind: 'sent', version: 13, rerendered: false });
+    expect(outcome).toEqual({ kind: 'sent', version: 13, rerendered: false, liveFailed: false });
     expect(requests.length).toBe(1);
     expect(requests[0].method).toBe('PUT');
     expect(requests[0].url).toBe('https://site.atlassian.net/wiki/api/v2/pages/42');
@@ -76,6 +83,35 @@ describe('pushNote', (): void => {
     expect(frontmatter['confluence-hash']).toBe(hashBody('rendered body'));
     // One change was held back, so the note still carries changes of its own.
     expect(frontmatter['confluence-unpushed']).toBe('2026-10-22');
+  });
+
+  it('writes the same body into a live doc once the version is saved', async (): Promise<void> => {
+    const { app, requests, client } = fake(200);
+    const outcome: PushOutcome = await pushNote({ app, client, users: new UserDirectory(client) }, requestFor([0], hashBody(BODY), true));
+    expect(outcome).toEqual({ kind: 'sent', version: 13, rerendered: false, liveFailed: false });
+    expect(requests.map((sent: HttpRequest): string => sent.method ?? '')).toEqual(['PUT', 'PUT']);
+    const version: { status: string } = JSON.parse(requests[0].body ?? '');
+    const live: { status: string; title: string; version: { number: number }; body: { value: string } } = JSON.parse(requests[1].body ?? '');
+    expect(version.status).toBe('current');
+    expect(requests[1].url).toBe('https://site.atlassian.net/wiki/api/v2/pages/42');
+    expect(live.status).toBe('draft');
+    expect(live.version).toEqual({ number: 1 });
+    expect(live.title).toBe('Page in Confluence');
+    expect(live.body.value).toBe('<p>patched</p>');
+  });
+
+  it('keeps the saved version and says so when the live doc refuses the body', async (): Promise<void> => {
+    const { app, frontmatter, client } = fake(200, 500);
+    const outcome: PushOutcome = await pushNote({ app, client, users: new UserDirectory(client) }, requestFor([0], hashBody(BODY), true));
+    expect(outcome).toEqual({ kind: 'sent', version: 13, rerendered: false, liveFailed: true });
+    expect(frontmatter['confluence-version']).toBe(13);
+  });
+
+  it('leaves a live doc untouched when the version is refused', async (): Promise<void> => {
+    const { app, requests, client } = fake(409);
+    const outcome: PushOutcome = await pushNote({ app, client, users: new UserDirectory(client) }, requestFor([0], hashBody(BODY), true));
+    expect(outcome).toEqual({ kind: 'conflict' });
+    expect(requests.length).toBe(1);
   });
 
   it('reports a conflict when Confluence refused the version, and changes nothing', async (): Promise<void> => {

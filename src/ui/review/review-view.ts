@@ -216,7 +216,7 @@ export class ReviewView extends ItemView {
       header.createDiv({ cls: 'confluence-review-status is-ok', text: REVIEW.remoteSame });
     }
     if (assessment.draft && this.state.mode === 'push') {
-      const status: HTMLElement = header.createDiv({ cls: 'confluence-review-status is-warn', text: REVIEW.draft(assessment.draft.by) });
+      const status: HTMLElement = header.createDiv({ cls: 'confluence-review-status is-warn', text: REVIEW.draft(assessment.draft.by, assessment.draft.live) });
       const label: HTMLLabelElement = status.createEl('label', { cls: 'confluence-review-headsup-ok' });
       const box: HTMLInputElement = label.createEl('input', { type: 'checkbox' });
       box.checked = this.draftAcknowledged;
@@ -358,6 +358,10 @@ export class ReviewView extends ItemView {
         this.done = REVIEW.sent(outcome.version);
         if (kept > 0) {
           this.done = REVIEW.sentSome(outcome.version, kept);
+        }
+        if (outcome.liveFailed) {
+          this.done = `${this.done} ${REVIEW.liveNotUpdated}`;
+          new Notice(REVIEW.liveNotUpdated);
         }
         this.render();
         return;

@@ -10,7 +10,7 @@ export const REVIEW: {
   nothingToSend: string;
   remoteSame: string;
   remoteMoved(by: string, when: string): string;
-  draft(by: string): string;
+  draft(by: string, live: boolean): string;
   sendAnyway: string;
   cardLabel(kind: 'changed' | 'added' | 'removed', what: string): string;
   sendThisChange: string;
@@ -31,6 +31,7 @@ export const REVIEW: {
   openInConfluence: string;
   sent(version: number): string;
   sentSome(version: number, kept: number): string;
+  liveNotUpdated: string;
   staleNotice: string;
   conflictNotice: string;
   pullSummary(count: number): string;
@@ -64,10 +65,13 @@ export const REVIEW: {
     }
     return `Confluence changed too. ${who} edited the page${time}. Get the Confluence version first, then make your changes again.`;
   },
-  draft: (by: string): string => {
+  draft: (by: string, live: boolean): string => {
     let who: string = 'Someone';
     if (by) {
       who = by;
+    }
+    if (live) {
+      return `${who} edited this live doc in Confluence, and those edits are not saved as a version yet. Sending now replaces them with your note. Confluence saves them as a version about 15 minutes after the editing stops; get the Confluence version then and send again.`;
     }
     return `${who} has unpublished changes on this page in Confluence. Sending now folds your text into that draft, which may surprise them.`;
   },
@@ -115,6 +119,7 @@ export const REVIEW: {
     }
     return `Sent. Confluence is now at version ${version}; ${held} in your note only.`;
   },
+  liveNotUpdated: 'This is a live doc, and it did not take the change: the new version is saved in the page history, but readers may not see it yet. Open it in Confluence to check.',
   staleNotice: 'The note changed while the review was open. The review was refreshed; check it and send again.',
   conflictNotice: 'Someone saved the page in Confluence just now. Nothing was sent.',
   pullSummary: (count: number): string => {

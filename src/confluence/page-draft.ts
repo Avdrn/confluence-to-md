@@ -6,6 +6,8 @@ export interface PageDraft {
   by: string;
   /** ISO 8601, '' when Confluence did not say. */
   when: string;
+  /** Edits in a live doc that no version holds yet; a send replaces them instead of merging. */
+  live: boolean;
 }
 
 /**
@@ -31,5 +33,5 @@ export async function fetchDraft(client: ConfluenceClient, pageId: string, publi
   if (publishedWhen && when && Date.parse(when) <= Date.parse(publishedWhen)) {
     return null;
   }
-  return { by: page.version.by?.displayName ?? '', when };
+  return { by: page.version.by?.displayName ?? '', when, live: false };
 }
