@@ -15,13 +15,15 @@ import { parseStorage } from '../convert/storage-parser';
 import { segmentStorage } from '../convert/storage-segments';
 import { attachmentPaths } from '../sync/attachments/attachment-sync';
 import { attachmentFolder } from '../sync/attachments/attachment-folder';
-import { PROPERTY, readManagedFrontMatter } from '../sync/front-matter/managed-front-matter';
+import { readManagedFrontMatter } from '../sync/front-matter/managed-front-matter';
+import { fetchDatabaseNote } from '../sync/database/database-note';
 import { buildManagedIndex } from '../vault/managed-note-index';
 import { bodyOf, stripFrontMatter } from '../vault/note-body';
 import { baseMarkdown } from './base-markdown';
 import { storageTargets } from './link-mapper';
 import { assess } from './preflight';
-import { childrenOf, pagesByTitleOf } from './space-links';
+import { childrenOf, notesByIdOf, pagesByTitleOf } from './space-links';
+import type { DatabaseNote } from '../sync/database/database-note';
 import type { ConfluenceClient } from '../confluence/api/confluence-client';
 import type { PageBody } from '../confluence/page-body';
 import type { PageDraft } from '../confluence/page-draft';
@@ -53,6 +55,8 @@ export interface PreparedPush {
   names: ReadonlyMap<string, string>;
   links: LinkResolveOptions;
   targets: StorageTargets;
+  /** For a database note, the table a sync would write now; such a note is read only. Null for a page. */
+  readOnlyBody: string | null;
 }
 
 const ATTACHMENT_FOLDER_REF: RegExp = /_attachments\/(\d+)\//g;
@@ -64,8 +68,11 @@ export async function preparePush(context: PushContext, file: TFile, scope: Spac
   if (!fields) {
     throw new Error('This note is not a synced Confluence page.');
   }
-  if ((frontmatter as Record<string, unknown>)[PROPERTY.type]) {
-    throw new Error('This note mirrors a Confluence database, whiteboard or embed. It can be read from Confluence but not edited from Obsidian.');
+  if (fields.type === 'database') {
+    return prepareDatabase(context, file, scope, fields);
+  }
+  if (fields.type !== 'page') {
+    throw new Error('This note mirrors a Confluence whiteboard or embed, which has no content to compare or send.');
   }
   const index: ManagedIndex = buildManagedIndex(app, scope.rootFolder, scope.spaceKey);
   if (index.duplicates.includes(file.path)) {
@@ -98,7 +105,49 @@ export async function preparePush(context: PushContext, file: TFile, scope: Spac
   }
   return {
     file, scope, fields, remote, live, draft, includes, names, links,
-    targets: storageTargets(app, file.path, scope.spaceKey, client.site, attachmentIndex)
+    targets: storageTargets(app, file.path, scope.spaceKey, client.site, attachmentIndex),
+    readOnlyBody: null
+  };
+}
+
+/**
+ * A database note has no storage to diff against. The table a sync would
+ * write now stands in for it, so the pane compares and pulls the same way,
+ * while the send stays blocked.
+ */
+async function prepareDatabase(
+  context: PushContext,
+  file: TFile,
+  scope: SpaceScope,
+  fields: ManagedFrontMatterFields
+): Promise<PreparedPush> {
+  const { app, client } = context;
+  const index: ManagedIndex = buildManagedIndex(app, scope.rootFolder, scope.spaceKey);
+  const note: DatabaseNote = await fetchDatabaseNote(client, context.users, fields.pageId, notesByIdOf(index));
+  const remote: PageBody = {
+    id: fields.pageId,
+    title: note.record.title || fields.title,
+    version: note.record.version,
+    storage: '',
+    webUrl: note.record.webUrl,
+    versionBy: note.versionBy,
+    versionById: note.record.versionById,
+    versionWhen: note.record.versionWhen
+  };
+  const links: LinkResolveOptions = {
+    spaceKey: scope.spaceKey,
+    siteUrl: client.site,
+    pagesByTitle: pagesByTitleOf(index, scope.spaceKey),
+    attachments: new Map<string, string>(),
+    children: []
+  };
+  return {
+    file, scope, fields, remote, live: false, draft: null,
+    includes: new Map<number, string>(),
+    names: new Map<string, string>(),
+    links,
+    targets: storageTargets(app, file.path, scope.spaceKey, client.site, new Map<string, AttachmentRef>()),
+    readOnlyBody: note.body
   };
 }
 
@@ -112,7 +161,8 @@ export function assessPrepared(prepared: PreparedPush, body: string): PushAssess
     users: prepared.names,
     links: prepared.links,
     targets: prepared.targets,
-    includes: prepared.includes
+    includes: prepared.includes,
+    readOnlyBody: prepared.readOnlyBody
   });
 }
 

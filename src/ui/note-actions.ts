@@ -7,6 +7,7 @@
 import { MarkdownView, Menu, TFile, setIcon } from 'obsidian';
 import type { App, WorkspaceLeaf } from 'obsidian';
 import { PROPERTY, readManagedFrontMatter } from '../sync/front-matter/managed-front-matter';
+import { REVIEWABLE_TYPES } from '../confluence/types/content-node.type';
 import { hashBody } from '../sync/plan/body-hash';
 import { bodyOf } from '../vault/note-body';
 import type { ManagedFrontMatterFields } from '../sync/front-matter/managed-front-matter';
@@ -76,16 +77,16 @@ export class NoteActions {
     }
   }
 
-  /** Synced page notes only: not the marker note, not a database, whiteboard or embed note. */
+  /** Synced page and database notes: not the marker note, not a whiteboard or embed stub. */
   private fieldsOf(file: TFile | null): ManagedFrontMatterFields | null {
     if (!file) {
       return null;
     }
-    const frontmatter: unknown = this.plugin.app.metadataCache.getFileCache(file)?.frontmatter;
-    if ((frontmatter as Record<string, unknown> | undefined)?.[PROPERTY.type]) {
+    const fields: ManagedFrontMatterFields | null = readManagedFrontMatter(this.plugin.app.metadataCache.getFileCache(file)?.frontmatter);
+    if (!fields || !REVIEWABLE_TYPES.has(fields.type)) {
       return null;
     }
-    return readManagedFrontMatter(frontmatter);
+    return fields;
   }
 
   private show(view: MarkdownView, file: TFile, fields: ManagedFrontMatterFields): void {
@@ -101,24 +102,30 @@ export class NoteActions {
     }
     const element: HTMLElement = icon;
     const flagged: boolean = Boolean((this.plugin.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined)?.[PROPERTY.unpushed]);
-    this.paint(element, flagged, fields.version);
+    this.paint(element, flagged, fields);
     if (!flagged && fields.hash) {
       void bodyOf(this.plugin.app, file).then((body: string): void => {
         if (view.file?.path === file.path) {
-          this.paint(element, hashBody(body) !== fields.hash, fields.version);
+          this.paint(element, hashBody(body) !== fields.hash, fields);
         }
       });
     }
   }
 
-  private paint(icon: HTMLElement, changed: boolean, version: number): void {
+  /** A changed database note cannot be sent, so its icon warns instead of offering an upload. */
+  private paint(icon: HTMLElement, changed: boolean, fields: ManagedFrontMatterFields): void {
+    if (changed && fields.type === 'database') {
+      setIcon(icon, 'cloud-alert');
+      icon.setAttribute('aria-label', 'Changed in Obsidian. A database cannot be sent to Confluence; get the Confluence version to reset the note');
+      return;
+    }
     if (changed) {
       setIcon(icon, 'cloud-upload');
       icon.setAttribute('aria-label', 'Changed in Obsidian, not sent to Confluence yet');
       return;
     }
     setIcon(icon, 'cloud');
-    icon.setAttribute('aria-label', `In sync with Confluence (version ${version})`);
+    icon.setAttribute('aria-label', `In sync with Confluence (version ${fields.version})`);
   }
 
   private hide(view: MarkdownView): void {
@@ -133,12 +140,13 @@ export class NoteActions {
   }
 
   private addItems(menu: Menu, file: TFile): void {
+    const fields: ManagedFrontMatterFields | null = this.fieldsOf(file);
     menu.addItem((item): void => {
       item.setTitle('Get the Confluence version').setIcon('cloud-download').onClick((): void => {
         this.handlers.pull(file);
       });
     });
-    if (this.handlers.pushEnabled()) {
+    if (fields?.type === 'page' && this.handlers.pushEnabled()) {
       menu.addItem((item): void => {
         item.setTitle('Send my changes to Confluence').setIcon('cloud-upload').onClick((): void => {
           this.handlers.push(file);

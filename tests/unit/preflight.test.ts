@@ -23,12 +23,13 @@ const NOTE: string = inertBody(resolveLinks(renderPage(samplePage, USERS, SITE),
 function input(body: string, remoteVersion: number = 12): PreflightInput {
   return {
     body,
-    fields: { pageId: '42', spaceKey: 'DOCS', title: 'Release 2.4', version: 12, hash: hashBody(NOTE), converter: 2, parentId: '' },
+    fields: { pageId: '42', spaceKey: 'DOCS', title: 'Release 2.4', version: 12, hash: hashBody(NOTE), converter: 2, parentId: '', type: 'page' },
     remote: { id: '42', title: 'Release 2.4', version: remoteVersion, storage: samplePage, webUrl: '', versionBy: 'Jane Doe', versionById: 'j', versionWhen: '2026-10-20T10:00:00.000Z' },
     draft: null,
     users: USERS,
     links: LINKS,
     includes: new Map<number, string>(),
+    readOnlyBody: null,
     targets: {
       siteUrl: SITE,
       spaceKey: 'DOCS',

@@ -3,6 +3,12 @@ export type ContentType = 'page' | 'folder' | 'database' | 'whiteboard' | 'embed
 /** Content with no body any API returns, mirrored as a stub note. A database has rows, read separately. */
 export const STUB_TYPES: ReadonlySet<ContentType> = new Set<ContentType>(['whiteboard', 'embed']);
 
+/**
+ * Content whose note gets the Confluence menu: a page, and a database, which
+ * can be refreshed and compared but not sent, since no API writes its rows.
+ */
+export const REVIEWABLE_TYPES: ReadonlySet<ContentType> = new Set<ContentType>(['page', 'database']);
+
 /** One entry in a space's content tree, whatever its type. */
 export interface ContentNode {
   id: string;

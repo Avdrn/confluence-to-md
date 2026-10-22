@@ -47,7 +47,11 @@ export interface ManagedFrontMatterFields {
   hash: string;
   converter: number;
   parentId: string;
+  /** What the note mirrors; a note without the property is a page. */
+  type: ContentType;
 }
+
+const CONTENT_TYPES: ReadonlySet<string> = new Set<string>(['page', 'folder', 'database', 'whiteboard', 'embed']);
 
 /** A YAML mapping as Obsidian's metadata cache hands it over. */
 interface PropertyBag {
@@ -93,8 +97,16 @@ export function readManagedFrontMatter(frontmatter: unknown): ManagedFrontMatter
     version: asNumber(bag[PROPERTY.version]),
     hash: asString(bag[PROPERTY.hash]),
     converter: asNumber(bag[PROPERTY.converter]),
-    parentId: asString(bag[PROPERTY.parentId])
+    parentId: asString(bag[PROPERTY.parentId]),
+    type: asType(bag[PROPERTY.type])
   };
+}
+
+function asType(value: unknown): ContentType {
+  if (typeof value === 'string' && CONTENT_TYPES.has(value)) {
+    return value as ContentType;
+  }
+  return 'page';
 }
 
 /** The space key a marker note declares, or '' when it is not a marker. */

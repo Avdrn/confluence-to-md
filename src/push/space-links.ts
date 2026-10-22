@@ -5,8 +5,19 @@
  */
 
 import { titleKey } from '../sync/links/title-key';
+import { stemOf } from '../shared/vault-path';
+import type { LinkedNote } from '../sync/database/render-database';
 import type { ChildNoteLink } from '../sync/placement/placement.type';
 import type { ManagedIndex, ManagedNote } from '../vault/managed-note-index';
+
+/** Every synced note by the content id it mirrors, for the links in a database's cells. */
+export function notesByIdOf(index: ManagedIndex): Map<string, LinkedNote> {
+  const byId: Map<string, LinkedNote> = new Map<string, LinkedNote>();
+  for (const [id, note] of index.notes) {
+    byId.set(id, { notePath: note.file.path, title: note.fields.title || stemOf(note.file.path) });
+  }
+  return byId;
+}
 
 /** Lowercased "spacekey\ntitle" to note path, for every synced note of the space. */
 export function pagesByTitleOf(index: ManagedIndex, spaceKey: string): Map<string, string> {

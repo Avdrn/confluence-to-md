@@ -29,6 +29,7 @@ import type { PreparedPush } from './push/prepare-push';
 import type { PushOutcome, PushRequest } from './push/push-page';
 import { PROPERTY, readManagedFrontMatter } from './sync/front-matter/managed-front-matter';
 import type { ManagedFrontMatterFields } from './sync/front-matter/managed-front-matter';
+import { REVIEWABLE_TYPES } from './confluence/types/content-node.type';
 import { hashBody } from './sync/plan/body-hash';
 import { bodyOf } from './vault/note-body';
 import type { SyncReport } from './sync/report/sync-report';
@@ -111,10 +112,19 @@ export default class ConfluenceSyncPlugin extends Plugin {
     return folderPath(file?.parent ?? null);
   }
 
-  /** The active note when it mirrors a Confluence page, for the note commands. */
+  /** The active note when it mirrors a Confluence page or database, for the note commands. */
   public activeSyncedFile(): TFile | null {
     const file: TFile | null = this.app.workspace.getActiveFile();
     if (!file || !this.syncedFields(file)) {
+      return null;
+    }
+    return file;
+  }
+
+  /** The active note when it mirrors a Confluence page, for the send command: a database cannot be sent. */
+  public activePageFile(): TFile | null {
+    const file: TFile | null = this.activeSyncedFile();
+    if (!file || this.syncedFields(file)?.type !== 'page') {
       return null;
     }
     return file;
@@ -168,6 +178,10 @@ export default class ConfluenceSyncPlugin extends Plugin {
       notify('Turn on "Allow sending changes to Confluence" in the settings first.', 8000);
       return;
     }
+    if (mode === 'push' && this.syncedFields(file)?.type === 'database') {
+      notify('This note mirrors a Confluence database. Its rows can be read from Confluence but not sent.', 8000);
+      return;
+    }
     if (!findMarkerForFile(this.app, file)) {
       notify('This note is not inside a Confluence space folder.', 8000);
       return;
@@ -216,12 +230,13 @@ export default class ConfluenceSyncPlugin extends Plugin {
     new ReportModal(this.app, report).open();
   }
 
+  /** The managed fields of a note that mirrors a page or a database; null for the marker note and for stubs. */
   private syncedFields(file: TFile): ManagedFrontMatterFields | null {
-    const frontmatter: unknown = this.app.metadataCache.getFileCache(file)?.frontmatter;
-    if ((frontmatter as Record<string, unknown> | undefined)?.[PROPERTY.type]) {
+    const fields: ManagedFrontMatterFields | null = readManagedFrontMatter(this.app.metadataCache.getFileCache(file)?.frontmatter);
+    if (!fields || !REVIEWABLE_TYPES.has(fields.type)) {
       return null;
     }
-    return readManagedFrontMatter(frontmatter);
+    return fields;
   }
 
   private noteHandlers(): NoteActionHandlers {

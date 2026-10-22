@@ -24,7 +24,7 @@ import { hashBody } from './plan/body-hash';
 import { resolveLinks } from './links/link-resolver';
 import { serializeFrontMatter } from './front-matter/managed-front-matter';
 import { databaseStubBody, stubBody } from './stubs/stub-note';
-import { renderDatabaseBody } from './database/database-note';
+import { linkedNotesOf, renderDatabaseBody } from './database/database-note';
 import { SyncReport } from './report/sync-report';
 import { AttachmentSync } from './attachments/attachment-sync';
 import { buildManagedIndex, resolveFolder } from '../vault/managed-note-index';
@@ -389,7 +389,7 @@ export class SpaceSync {
    */
   private async databaseBody(node: ContentNode, placement: ContentPlacement): Promise<string> {
     try {
-      return await renderDatabaseBody(this.context.client, this.users, node, placement);
+      return await renderDatabaseBody(this.context.client, this.users, node.id, linkedNotesOf(placement));
     } catch (err) {
       if (err instanceof CancelledError) {
         throw err;

@@ -74,9 +74,12 @@ export function registerCommands(plugin: ConfluenceSyncPlugin): void {
 
 /** Commands on the active note, offered only while it mirrors a Confluence page. */
 export function registerNoteCommands(plugin: ConfluenceSyncPlugin): void {
-  const onSyncedNote = (run: (file: TFile) => void): ((checking: boolean) => boolean) =>
+  const onSyncedNote = (
+    run: (file: TFile) => void,
+    pick: () => TFile | null = (): TFile | null => plugin.activeSyncedFile()
+  ): ((checking: boolean) => boolean) =>
     (checking: boolean): boolean => {
-      const file: TFile | null = plugin.activeSyncedFile();
+      const file: TFile | null = pick();
       if (!file) {
         return false;
       }
@@ -99,7 +102,7 @@ export function registerNoteCommands(plugin: ConfluenceSyncPlugin): void {
     name: 'Send my changes in this note to Confluence',
     checkCallback: onSyncedNote((file: TFile): void => {
       void plugin.openReview(file, 'push');
-    })
+    }, (): TFile | null => plugin.activePageFile())
   });
 
   plugin.addCommand({

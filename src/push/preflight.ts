@@ -43,7 +43,15 @@ export interface PreflightInput {
   targets: StorageTargets;
   /** Bodies of the pages the remote's include macros pull in, by macro offset. */
   includes: IncludedBodies;
+  /**
+   * For content the note can only read, a database: the body a sync would
+   * write now, which stands in for a storage body. Null for a page.
+   */
+  readOnlyBody: string | null;
 }
+
+/** Why a database note cannot be sent, as the assessment's `blocked`. */
+export const READ_ONLY_REASON: string = 'This note mirrors a Confluence database. Confluence has no API that writes database rows, so changes made in Obsidian cannot be sent.';
 
 export type ReviewChangeKind = 'changed' | 'added' | 'removed';
 
@@ -99,6 +107,9 @@ export interface PushAssessment {
 }
 
 export function assess(input: PreflightInput): PushAssessment {
+  if (input.readOnlyBody !== null) {
+    return assessReadOnly(input, input.readOnlyBody);
+  }
   const body: string = removeInertMarkers(input.body);
   const blocks: Array<NoteBlock> = noteBlocks(body);
   const localTexts: Array<string> = blocks.map((block: NoteBlock): string => block.text);
@@ -147,6 +158,67 @@ export function assess(input: PreflightInput): PushAssessment {
     roundTrip: roundTrip(storageFor(all), localTexts, input.users, input.links, input.includes),
     storageFor,
     renderedFor: (storage: string): string => baseMarkdown(storage, input.users, input.links, input.includes).body
+  };
+}
+
+/**
+ * The assessment of a database note: the note against the table a sync would
+ * write now. Nothing can be sent, so there is no storage to patch and nothing
+ * to warn about; the cards show what differs, which is what a comparison and
+ * a pull need.
+ */
+function assessReadOnly(input: PreflightInput, remoteBody: string): PushAssessment {
+  const body: string = removeInertMarkers(input.body);
+  const blocks: Array<NoteBlock> = noteBlocks(body);
+  const baseBlocks: Array<NoteBlock> = noteBlocks(remoteBody);
+  const localTexts: Array<string> = blocks.map((block: NoteBlock): string => block.text);
+  const baseTexts: Array<string> = baseBlocks.map((block: NoteBlock): string => block.text);
+  const diff: Array<BlockChange> = diffBlocks(baseTexts, localTexts);
+  const changes: Array<ReviewChange> = new Array<ReviewChange>();
+  const runs: Array<ReviewRun> = new Array<ReviewRun>();
+  diff.forEach((change: BlockChange, index: number): void => {
+    if (change.kind === 'equal') {
+      runs.push({ kind: 'unchanged', count: change.base[1] - change.base[0], text: joinBlocks(baseTexts.slice(change.base[0], change.base[1])), change: null });
+      return;
+    }
+    const localRange: Array<NoteBlock> = blocks.slice(change.local[0], change.local[1]);
+    let lines: [number, number] | null = null;
+    if (localRange.length > 0) {
+      lines = [localRange[0].block.from, localRange[localRange.length - 1].block.to];
+    }
+    let what: string = wordsForBlocks(localRange.map((block: NoteBlock): MdBlock => block.block));
+    if (change.kind === 'removed') {
+      what = wordsForBlocks(baseBlocks.slice(change.base[0], change.base[1]).map((block: NoteBlock): MdBlock => block.block));
+    }
+    const reviewed: ReviewChange = {
+      index,
+      kind: change.kind as ReviewChangeKind,
+      what,
+      before: joinBlocks(baseTexts.slice(change.base[0], change.base[1])),
+      after: joinBlocks(localTexts.slice(change.local[0], change.local[1])),
+      lines,
+      localBlocks: change.local,
+      headsUp: []
+    };
+    changes.push(reviewed);
+    runs.push({ kind: 'change', count: 1, text: '', change: reviewed });
+  });
+  return {
+    noteVersion: input.fields.version,
+    remoteVersion: input.remote.version,
+    remoteBy: input.remote.versionBy,
+    remoteWhen: input.remote.versionWhen,
+    remoteMoved: input.remote.version !== input.fields.version,
+    localChanged: input.fields.hash.length > 0 && hashBody(input.body) !== input.fields.hash,
+    draft: null,
+    blocked: READ_ONLY_REASON,
+    changes,
+    unchanged: diff.filter((change: BlockChange): boolean => change.kind === 'equal')
+      .reduce((count: number, change: BlockChange): number => count + change.base[1] - change.base[0], 0),
+    runs,
+    roundTrip: { body: remoteBody, differences: [] },
+    storageFor: (): string => '',
+    renderedFor: (): string => remoteBody
   };
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fetchDatabaseRows } from '../../src/confluence/database-rows';
+import { fetchDatabaseRecord, fetchDatabaseRows } from '../../src/confluence/database-rows';
 import { ConfluenceClient } from '../../src/confluence/api/confluence-client';
 import { ConfluenceApiError } from '../../src/confluence/api/api-error';
 import { RequestQueue } from '../../src/confluence/api/request-queue';
@@ -17,6 +17,19 @@ function row(id: string): V2DatabaseEntry {
 }
 
 function route(url: string): { status: number; body: unknown } {
+  if (url === `${SITE}/wiki/api/v2/databases/42`) {
+    return {
+      status: 200,
+      body: {
+        id: '42',
+        title: 'Leads',
+        parentId: '9',
+        parentType: 'page',
+        version: { number: 44, authorId: 'a1', createdAt: '2026-10-21T09:09:34.101Z' },
+        _links: { webui: '/spaces/SM/database/42', base: `${SITE}/wiki` }
+      }
+    };
+  }
   if (url === FIELDS) {
     return {
       status: 200,
@@ -65,6 +78,18 @@ describe('fetchDatabaseRows', (): void => {
     expect(rows.fields.map((field: V2DatabaseField): string => field.id)).toEqual(['f1', 'f2']);
     expect(rows.entries.map((entry: V2DatabaseEntry): string => entry.id)).toEqual(['e1', 'e2', 'e3']);
     expect(calls).toEqual([FIELDS, `${FIELDS}&cursor=f2`, ENTRIES, `${ENTRIES}&cursor=e3`]);
+  });
+
+  it('reads the record a pull needs: title, parent, version and link', async (): Promise<void> => {
+    await expect(fetchDatabaseRecord(client([]), '42')).resolves.toEqual({
+      id: '42',
+      title: 'Leads',
+      parentId: '9',
+      version: 44,
+      versionById: 'a1',
+      versionWhen: '2026-10-21T09:09:34.101Z',
+      webUrl: `${SITE}/wiki/spaces/SM/database/42`
+    });
   });
 
   it('lets a site without the Databases API fail the fetch, not the sync', async (): Promise<void> => {

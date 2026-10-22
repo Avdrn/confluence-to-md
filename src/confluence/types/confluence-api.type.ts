@@ -2,6 +2,8 @@
 
 export interface V2Version {
   number: number;
+  authorId?: string;
+  createdAt?: string;
 }
 
 /** `version` as the v1 content API expands it: who saved it and when. */

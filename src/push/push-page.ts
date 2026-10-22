@@ -54,6 +54,9 @@ export async function pushNote(deps: PushDeps, request: PushRequest): Promise<Pu
   const { app, client } = deps;
   const { prepared, assessment, sending } = request;
   const file: TFile = prepared.file;
+  if (prepared.readOnlyBody) {
+    throw new Error('This note mirrors a Confluence database, which cannot be sent: no API writes its rows.');
+  }
   if (sending.size === 0) {
     return { kind: 'nothing' };
   }

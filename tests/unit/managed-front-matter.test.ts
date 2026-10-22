@@ -51,7 +51,13 @@ describe('readManagedFrontMatter', (): void => {
       'confluence-converter': 1,
       'confluence-parent-id': '9'
     });
-    expect(read).toEqual({ pageId: '123', spaceKey: 'ISO', title: 'T', version: 4, hash: 'abc', converter: 1, parentId: '9' });
+    expect(read).toEqual({ pageId: '123', spaceKey: 'ISO', title: 'T', version: 4, hash: 'abc', converter: 1, parentId: '9', type: 'page' });
+  });
+
+  it('reads the content type, and takes a note without one, or with an unknown one, for a page', (): void => {
+    expect(readManagedFrontMatter({ 'confluence-page-id': '1', 'confluence-type': 'database' })?.type).toBe('database');
+    expect(readManagedFrontMatter({ 'confluence-page-id': '1', 'confluence-type': 'spreadsheet' })?.type).toBe('page');
+    expect(readManagedFrontMatter({ 'confluence-page-id': '1' })?.type).toBe('page');
   });
 
   it('returns null for notes without a page id', (): void => {
